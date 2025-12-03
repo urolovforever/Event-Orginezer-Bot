@@ -236,12 +236,13 @@ async def confirm_add_event(callback: CallbackQuery, state: FSMContext):
             sheets_manager.add_event(event)
 
         # Send notification to media group
-        try:
-            from scheduler import reminder_scheduler
-            if reminder_scheduler:
+        if reminder_scheduler:
+            try:
                 await reminder_scheduler.send_immediate_notification(event)
-        except Exception as e:
-            print(f"Error sending notification: {e}")
+            except Exception as e:
+                print(f"❌ Error sending notification: {e}")
+                import traceback
+                traceback.print_exc()
 
         is_admin = await db.is_admin(user_id)
 
