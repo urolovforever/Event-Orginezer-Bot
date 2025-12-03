@@ -101,8 +101,10 @@ class ReminderScheduler:
         """Send reminder message to media group."""
         try:
             if not config.MEDIA_GROUP_CHAT_ID:
-                print("Warning: MEDIA_GROUP_CHAT_ID not configured")
+                print("❌ Error: MEDIA_GROUP_CHAT_ID not configured in .env file")
                 return
+
+            print(f"📤 Sending reminder to chat_id: {config.MEDIA_GROUP_CHAT_ID}")
 
             # Format time description
             if hours_before == 24:
@@ -138,8 +140,10 @@ class ReminderScheduler:
         """Send immediate notification about new event to media group."""
         try:
             if not config.MEDIA_GROUP_CHAT_ID:
-                print("Warning: MEDIA_GROUP_CHAT_ID not configured")
+                print("❌ Error: MEDIA_GROUP_CHAT_ID not configured in .env file")
                 return
+
+            print(f"📤 Sending immediate notification to chat_id: {config.MEDIA_GROUP_CHAT_ID}")
 
             message = (
                 f"📢 <b>Yangi tadbir qo'shildi!</b>\n\n"
@@ -159,7 +163,9 @@ class ReminderScheduler:
                 parse_mode="HTML"
             )
 
-            print(f"Immediate notification sent for event {event['id']}")
+            print(f"✅ Immediate notification sent for event {event['id']}")
 
         except Exception as e:
-            print(f"Error sending immediate notification: {e}")
+            print(f"❌ Error sending immediate notification: {e}")
+            import traceback
+            traceback.print_exc()

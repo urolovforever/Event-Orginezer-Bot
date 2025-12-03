@@ -21,7 +21,10 @@ ADMIN_USER_IDS = [
     for user_id in os.getenv('ADMIN_USER_IDS', '').split(',')
     if user_id.strip().isdigit()
 ]
-MEDIA_GROUP_CHAT_ID = os.getenv('MEDIA_GROUP_CHAT_ID')
+
+# Media group chat ID (convert to int)
+MEDIA_GROUP_CHAT_ID_STR = os.getenv('MEDIA_GROUP_CHAT_ID', '')
+MEDIA_GROUP_CHAT_ID = int(MEDIA_GROUP_CHAT_ID_STR) if MEDIA_GROUP_CHAT_ID_STR and MEDIA_GROUP_CHAT_ID_STR.lstrip('-').isdigit() else None
 
 # Database Configuration
 DATABASE_PATH = os.getenv('DATABASE_PATH', 'database.db')
