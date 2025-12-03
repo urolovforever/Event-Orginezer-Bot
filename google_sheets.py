@@ -4,6 +4,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from typing import Dict, Any, Optional
 import config
 from datetime import datetime
+import pytz
 
 
 class GoogleSheetsManager:
@@ -91,6 +92,10 @@ class GoogleSheetsManager:
             return False
 
         try:
+            # Get current time in Tashkent timezone as fallback
+            local_tz = pytz.timezone(config.TIMEZONE)
+            local_now = datetime.now(local_tz).strftime('%Y-%m-%d %H:%M:%S')
+
             row_data = [
                 event.get('id', ''),
                 event.get('title', ''),
@@ -101,7 +106,7 @@ class GoogleSheetsManager:
                 event.get('creator_department', ''),
                 event.get('creator_name', ''),
                 event.get('creator_phone', ''),
-                event.get('created_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+                event.get('created_at', local_now)
             ]
 
             # Parse event date and time for sorting
