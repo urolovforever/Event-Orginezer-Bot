@@ -37,15 +37,15 @@ def get_main_menu_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
     return keyboard.as_markup(resize_keyboard=True)
 
 
-def get_events_schedule_keyboard() -> InlineKeyboardMarkup:
-    """Get keyboard for events schedule options."""
-    keyboard = InlineKeyboardBuilder()
-    keyboard.button(text="📆 Bugungi tadbirlar", callback_data="schedule_today")
-    keyboard.button(text="📅 Haftalik jadval", callback_data="schedule_week")
-    keyboard.button(text="📋 Barcha tadbirlar", callback_data="schedule_all")
-    keyboard.button(text="🔙 Orqaga", callback_data="back_to_menu")
-    keyboard.adjust(1)
-    return keyboard.as_markup()
+def get_events_schedule_reply_keyboard() -> ReplyKeyboardMarkup:
+    """Get reply keyboard for events schedule options."""
+    keyboard = ReplyKeyboardBuilder()
+    keyboard.button(text="📆 Bugungi tadbirlar")
+    keyboard.button(text="📅 Haftalik jadval")
+    keyboard.button(text="📋 Barcha tadbirlar")
+    keyboard.button(text="🔙 Asosiy menyu")
+    keyboard.adjust(2)
+    return keyboard.as_markup(resize_keyboard=True)
 
 
 def get_confirmation_keyboard() -> InlineKeyboardMarkup:

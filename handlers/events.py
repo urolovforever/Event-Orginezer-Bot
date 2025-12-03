@@ -7,6 +7,7 @@ from database import db
 from states import AddEventStates, EditEventStates
 import keyboards as kb
 from google_sheets import sheets_manager
+import config
 import re
 
 router = Router()
@@ -291,34 +292,29 @@ async def show_events_menu(message: Message):
     """Show events schedule menu."""
     await message.answer(
         "Qaysi jadvalini ko'rmoqchisiz?",
-        reply_markup=kb.get_events_schedule_keyboard()
+        reply_markup=kb.get_events_schedule_reply_keyboard()
     )
 
 
-@router.callback_query(F.data == "schedule_today")
-async def show_today_events(callback: CallbackQuery):
+@router.message(F.text == "📆 Bugungi tadbirlar")
+async def show_today_events(message: Message):
     """Show today's events."""
     today = datetime.now().strftime('%d.%m.%Y')
     events = await db.get_events_by_date(today)
 
     if not events:
-        await callback.answer("Bugun tadbirlar yo'q", show_alert=True)
+        await message.answer("Bugun tadbirlar yo'q")
         return
 
     text = "<b>📆 Bugungi tadbirlar:</b>\n\n"
     for event in events:
         text += format_event_text(event) + "\n\n"
 
-    await callback.message.edit_text(
-        text,
-        reply_markup=kb.get_events_schedule_keyboard(),
-        parse_mode="HTML"
-    )
-    await callback.answer()
+    await message.answer(text, parse_mode="HTML")
 
 
-@router.callback_query(F.data == "schedule_week")
-async def show_week_events(callback: CallbackQuery):
+@router.message(F.text == "📅 Haftalik jadval")
+async def show_week_events(message: Message):
     """Show this week's events."""
     events = await db.get_upcoming_events()
 
@@ -337,28 +333,23 @@ async def show_week_events(callback: CallbackQuery):
             pass
 
     if not week_events:
-        await callback.answer("Kelgusi haftada tadbirlar yo'q", show_alert=True)
+        await message.answer("Kelgusi haftada tadbirlar yo'q")
         return
 
     text = "<b>📅 Haftalik jadval:</b>\n\n"
     for event in week_events:
         text += format_event_text(event) + "\n\n"
 
-    await callback.message.edit_text(
-        text,
-        reply_markup=kb.get_events_schedule_keyboard(),
-        parse_mode="HTML"
-    )
-    await callback.answer()
+    await message.answer(text, parse_mode="HTML")
 
 
-@router.callback_query(F.data == "schedule_all")
-async def show_all_events(callback: CallbackQuery):
+@router.message(F.text == "📋 Barcha tadbirlar")
+async def show_all_events(message: Message):
     """Show all upcoming events."""
     events = await db.get_upcoming_events(limit=20)
 
     if not events:
-        await callback.answer("Hozircha tadbirlar yo'q", show_alert=True)
+        await message.answer("Hozircha tadbirlar yo'q")
         return
 
     text = "<b>📋 Barcha tadbirlar:</b>\n\n"
@@ -368,26 +359,19 @@ async def show_all_events(callback: CallbackQuery):
     if len(events) == 20:
         text += "\n<i>... va boshqalar</i>"
 
-    await callback.message.edit_text(
-        text,
-        reply_markup=kb.get_events_schedule_keyboard(),
-        parse_mode="HTML"
-    )
-    await callback.answer()
+    await message.answer(text, parse_mode="HTML")
 
 
-@router.callback_query(F.data == "back_to_menu")
-async def back_to_menu_callback(callback: CallbackQuery):
-    """Back to main menu."""
-    user_id = callback.from_user.id
+@router.message(F.text == "🔙 Asosiy menyu")
+async def back_to_main_menu_from_schedule(message: Message):
+    """Back to main menu from schedule."""
+    user_id = message.from_user.id
     is_admin = await db.is_admin(user_id)
 
-    await callback.message.delete()
-    await callback.message.answer(
+    await message.answer(
         "Asosiy menyu:",
         reply_markup=kb.get_main_menu_keyboard(is_admin)
     )
-    await callback.answer()
 
 
 # ========== MY EVENTS HANDLERS ==========
@@ -602,10 +586,45 @@ async def process_new_field_value(message: Message, state: FSMContext):
     success = await db.update_event(event_id, **{field: new_value})
 
     if success:
-        # Update in Google Sheets
+        # Get updated event
         event = await db.get_event(event_id)
+
+        # Update in Google Sheets
         if event and sheets_manager.is_connected():
             sheets_manager.update_event(event_id, event)
+
+        # Send notification to media group
+        if event and reminder_scheduler:
+            try:
+                field_names_uz = {
+                    "title": "Tadbir nomi",
+                    "date": "Sana",
+                    "time": "Vaqt",
+                    "place": "Joy",
+                    "comment": "Izoh"
+                }
+
+                notification_msg = (
+                    f"✏️ <b>Tadbir tahrirlandi!</b>\n\n"
+                    f"<b>{event['title']}</b>\n\n"
+                    f"O'zgargan maydon: {field_names_uz.get(field, field)}\n"
+                    f"Yangi qiymat: {new_value}\n\n"
+                    f"📅 Sana: {event['date']}\n"
+                    f"🕐 Vaqt: {event['time']}\n"
+                    f"📍 Joy: {event['place']}\n"
+                    f"💬 Izoh: {event.get('comment', 'Izoh yo\\'q')}\n\n"
+                    f"👤 Mas'ul: {event['creator_name']}\n"
+                    f"🏢 Bo'lim: {event['creator_department']}\n"
+                    f"📱 Telefon: {event['creator_phone']}"
+                )
+
+                await reminder_scheduler.bot.send_message(
+                    chat_id=config.MEDIA_GROUP_CHAT_ID,
+                    text=notification_msg,
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                print(f"Error sending edit notification: {e}")
 
         user_id = message.from_user.id
         is_admin = await db.is_admin(user_id)
