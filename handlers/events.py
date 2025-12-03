@@ -589,6 +589,7 @@ async def process_new_field_value(message: Message, state: FSMContext):
     if success:
         # Get updated event
         event = await db.get_event(event_id)
+        print(f"🔍 DEBUG: event = {event is not None}, reminder_scheduler = {reminder_scheduler is not None}")
 
         # Update in Google Sheets
         if event and sheets_manager.is_connected():
@@ -596,6 +597,7 @@ async def process_new_field_value(message: Message, state: FSMContext):
 
         # Send notification to media group
         if event and reminder_scheduler:
+            print(f"🔍 DEBUG: Attempting to send edit notification...")
             try:
                 if not config.MEDIA_GROUP_CHAT_ID:
                     print("❌ Error: MEDIA_GROUP_CHAT_ID not configured in .env file")
@@ -634,6 +636,8 @@ async def process_new_field_value(message: Message, state: FSMContext):
                 print(f"❌ Error sending edit notification: {e}")
                 import traceback
                 traceback.print_exc()
+        else:
+            print(f"🔍 DEBUG: Skipping notification - event={event is not None}, reminder_scheduler={reminder_scheduler is not None}")
 
         user_id = message.from_user.id
         is_admin = await db.is_admin(user_id)
