@@ -596,35 +596,43 @@ async def process_new_field_value(message: Message, state: FSMContext):
         # Send notification to media group
         if event and reminder_scheduler:
             try:
-                field_names_uz = {
-                    "title": "Tadbir nomi",
-                    "date": "Sana",
-                    "time": "Vaqt",
-                    "place": "Joy",
-                    "comment": "Izoh"
-                }
+                if not config.MEDIA_GROUP_CHAT_ID:
+                    print("❌ Error: MEDIA_GROUP_CHAT_ID not configured in .env file")
+                else:
+                    print(f"📤 Sending edit notification to chat_id: {config.MEDIA_GROUP_CHAT_ID}")
 
-                notification_msg = (
-                    f"✏️ <b>Tadbir tahrirlandi!</b>\n\n"
-                    f"<b>{event['title']}</b>\n\n"
-                    f"O'zgargan maydon: {field_names_uz.get(field, field)}\n"
-                    f"Yangi qiymat: {new_value}\n\n"
-                    f"📅 Sana: {event['date']}\n"
-                    f"🕐 Vaqt: {event['time']}\n"
-                    f"📍 Joy: {event['place']}\n"
-                    f"💬 Izoh: {event.get('comment', 'Izoh yo\\'q')}\n\n"
-                    f"👤 Mas'ul: {event['creator_name']}\n"
-                    f"🏢 Bo'lim: {event['creator_department']}\n"
-                    f"📱 Telefon: {event['creator_phone']}"
-                )
+                    field_names_uz = {
+                        "title": "Tadbir nomi",
+                        "date": "Sana",
+                        "time": "Vaqt",
+                        "place": "Joy",
+                        "comment": "Izoh"
+                    }
 
-                await reminder_scheduler.bot.send_message(
-                    chat_id=config.MEDIA_GROUP_CHAT_ID,
-                    text=notification_msg,
-                    parse_mode="HTML"
-                )
+                    notification_msg = (
+                        f"✏️ <b>Tadbir tahrirlandi!</b>\n\n"
+                        f"<b>{event['title']}</b>\n\n"
+                        f"O'zgargan maydon: {field_names_uz.get(field, field)}\n"
+                        f"Yangi qiymat: {new_value}\n\n"
+                        f"📅 Sana: {event['date']}\n"
+                        f"🕐 Vaqt: {event['time']}\n"
+                        f"📍 Joy: {event['place']}\n"
+                        f"💬 Izoh: {event.get('comment', 'Izoh yo\\'q')}\n\n"
+                        f"👤 Mas'ul: {event['creator_name']}\n"
+                        f"🏢 Bo'lim: {event['creator_department']}\n"
+                        f"📱 Telefon: {event['creator_phone']}"
+                    )
+
+                    await reminder_scheduler.bot.send_message(
+                        chat_id=config.MEDIA_GROUP_CHAT_ID,
+                        text=notification_msg,
+                        parse_mode="HTML"
+                    )
+                    print(f"✅ Edit notification sent for event {event['id']}")
             except Exception as e:
-                print(f"Error sending edit notification: {e}")
+                print(f"❌ Error sending edit notification: {e}")
+                import traceback
+                traceback.print_exc()
 
         user_id = message.from_user.id
         is_admin = await db.is_admin(user_id)
