@@ -1,6 +1,8 @@
 """Main bot file for Event Organizer Bot."""
 import asyncio
 import logging
+from datetime import datetime
+import pytz
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
@@ -12,10 +14,31 @@ from google_sheets import sheets_manager
 from scheduler import ReminderScheduler
 from handlers import start, events, admin
 
-# Configure logging
+
+# Custom logging formatter with Tashkent timezone
+class TashkentFormatter(logging.Formatter):
+    """Logging Formatter that uses Tashkent timezone."""
+
+    def __init__(self, fmt=None, datefmt=None):
+        super().__init__(fmt, datefmt)
+        self.tz = pytz.timezone(config.TIMEZONE)
+
+    def formatTime(self, record, datefmt=None):
+        dt = datetime.fromtimestamp(record.created, self.tz)
+        if datefmt:
+            return dt.strftime(datefmt)
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+
+# Configure logging with Tashkent timezone
+handler = logging.StreamHandler()
+handler.setFormatter(TashkentFormatter(
+    fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+))
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    handlers=[handler]
 )
 logger = logging.getLogger(__name__)
 
