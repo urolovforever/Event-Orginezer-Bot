@@ -86,7 +86,7 @@ class GoogleSheetsManager:
             print(f"Error setting up headers: {e}")
 
     def add_event(self, event: Dict[str, Any]) -> bool:
-        """Add a new event to Google Sheets."""
+        """Add a new event to Google Sheets, sorted by date and time."""
         if not self._initialized:
             return False
 
@@ -104,7 +104,55 @@ class GoogleSheetsManager:
                 event.get('created_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
             ]
 
-            self.worksheet.append_row(row_data)
+            # Parse event date and time for sorting
+            try:
+                event_date = event.get('date', '')
+                event_time = event.get('time', '')
+                day, month, year = map(int, event_date.split('.'))
+                hour, minute = map(int, event_time.split(':'))
+                event_datetime = datetime(year, month, day, hour, minute)
+            except:
+                # If parsing fails, append to the end
+                self.worksheet.append_row(row_data)
+                return True
+
+            # Get all existing rows (skip header)
+            all_values = self.worksheet.get_all_values()
+            if len(all_values) <= 1:  # Only header or empty
+                self.worksheet.append_row(row_data)
+                return True
+
+            # Find the correct position to insert (sorted by date/time)
+            insert_position = None
+            for idx, row in enumerate(all_values[1:], start=2):  # Start from row 2 (skip header)
+                if len(row) < 4:  # Not enough columns
+                    continue
+
+                try:
+                    row_date = row[2]  # Sana column
+                    row_time = row[3]  # Vaqt column
+
+                    if not row_date or not row_time:
+                        continue
+
+                    # Parse existing row date/time
+                    r_day, r_month, r_year = map(int, row_date.split('.'))
+                    r_hour, r_minute = map(int, row_time.split(':'))
+                    row_datetime = datetime(r_year, r_month, r_day, r_hour, r_minute)
+
+                    # If new event is earlier, insert here
+                    if event_datetime < row_datetime:
+                        insert_position = idx
+                        break
+                except:
+                    continue
+
+            # Insert at the correct position or append to the end
+            if insert_position:
+                self.worksheet.insert_row(row_data, insert_position)
+            else:
+                self.worksheet.append_row(row_data)
+
             return True
 
         except Exception as e:
@@ -117,29 +165,15 @@ class GoogleSheetsManager:
             return False
 
         try:
-            # Find the row with the event ID
+            # Find and delete the old row
             cell = self.worksheet.find(str(event_id))
             if not cell:
                 return False
 
-            row_num = cell.row
+            self.worksheet.delete_rows(cell.row)
 
-            # Update the row
-            row_data = [
-                event.get('id', event_id),
-                event.get('title', ''),
-                event.get('date', ''),
-                event.get('time', ''),
-                event.get('place', ''),
-                event.get('comment', 'Izoh yo\'q'),
-                event.get('creator_department', ''),
-                event.get('creator_name', ''),
-                event.get('creator_phone', ''),
-                event.get('created_at', '')
-            ]
-
-            self.worksheet.update(f'A{row_num}:J{row_num}', [row_data])
-            return True
+            # Re-add the event with updated data (will be inserted in correct sorted position)
+            return self.add_event(event)
 
         except Exception as e:
             print(f"Error updating event in Google Sheets: {e}")
