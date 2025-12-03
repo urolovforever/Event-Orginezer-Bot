@@ -12,10 +12,11 @@ def get_phone_keyboard() -> ReplyKeyboardMarkup:
     return keyboard.as_markup(resize_keyboard=True, one_time_keyboard=True)
 
 
-def get_departments_keyboard() -> ReplyKeyboardMarkup:
+def get_departments_keyboard(departments: List[str] = None) -> ReplyKeyboardMarkup:
     """Get keyboard with department buttons."""
     keyboard = ReplyKeyboardBuilder()
-    for department in config.DEPARTMENTS:
+    dept_list = departments if departments else config.DEPARTMENTS
+    for department in dept_list:
         keyboard.button(text=department)
     keyboard.adjust(2)  # 2 buttons per row
     return keyboard.as_markup(resize_keyboard=True, one_time_keyboard=True)
@@ -30,7 +31,7 @@ def get_main_menu_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
 
     if is_admin:
         keyboard.button(text="📊 Statistika")
-        keyboard.button(text="👥 Barcha foydalanuvchilar")
+        keyboard.button(text="🏢 Bo'limlar boshqaruvi")
 
     keyboard.adjust(2)
     return keyboard.as_markup(resize_keyboard=True)
@@ -115,3 +116,25 @@ def remove_keyboard() -> ReplyKeyboardMarkup:
     """Remove keyboard."""
     from aiogram.types import ReplyKeyboardRemove
     return ReplyKeyboardRemove()
+
+
+def get_departments_management_keyboard() -> InlineKeyboardMarkup:
+    """Get keyboard for departments management."""
+    keyboard = InlineKeyboardBuilder()
+    keyboard.button(text="➕ Bo'lim qo'shish", callback_data="dept_add")
+    keyboard.button(text="📋 Bo'limlar ro'yxati", callback_data="dept_list")
+    keyboard.button(text="🔙 Orqaga", callback_data="back_to_menu")
+    keyboard.adjust(1)
+    return keyboard.as_markup()
+
+
+def get_departments_list_keyboard(departments: List[str]) -> InlineKeyboardMarkup:
+    """Get keyboard with departments list for deletion."""
+    keyboard = InlineKeyboardBuilder()
+
+    for dept in departments:
+        keyboard.button(text=f"❌ {dept}", callback_data=f"dept_delete_{dept}")
+
+    keyboard.button(text="🔙 Orqaga", callback_data="dept_manage")
+    keyboard.adjust(1)
+    return keyboard.as_markup()

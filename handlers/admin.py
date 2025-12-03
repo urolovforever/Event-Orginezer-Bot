@@ -1,7 +1,9 @@
 """Admin handlers for statistics and management."""
 from aiogram import Router, F
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
 from database import db
+from states import DepartmentManagementStates
 import keyboards as kb
 
 router = Router()
@@ -31,9 +33,9 @@ async def show_statistics(message: Message):
     await message.answer(text, parse_mode="HTML")
 
 
-@router.message(F.text == "👥 Barcha foydalanuvchilar")
-async def show_all_users(message: Message):
-    """Show all registered users (admin only)."""
+@router.message(F.text == "🏢 Bo'limlar boshqaruvi")
+async def manage_departments(message: Message):
+    """Manage departments (admin only)."""
     user_id = message.from_user.id
 
     # Check if user is admin
@@ -41,4 +43,103 @@ async def show_all_users(message: Message):
         await message.answer("❌ Bu buyruqdan foydalanish uchun sizda ruxsat yo'q.")
         return
 
-    await message.answer("Bu funksiya hali ishlab chiqilmoqda.")
+    await message.answer(
+        "Bo'limlarni boshqarish:",
+        reply_markup=kb.get_departments_management_keyboard()
+    )
+
+
+@router.callback_query(F.data == "dept_manage")
+async def dept_manage_callback(callback: CallbackQuery):
+    """Show departments management menu."""
+    await callback.message.edit_text(
+        "Bo'limlarni boshqarish:",
+        reply_markup=kb.get_departments_management_keyboard()
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "dept_add")
+async def start_add_department(callback: CallbackQuery, state: FSMContext):
+    """Start adding a new department."""
+    await callback.message.edit_text(
+        "Yangi bo'lim nomini kiriting:",
+        reply_markup=None
+    )
+    await state.set_state(DepartmentManagementStates.waiting_for_department_name)
+    await callback.answer()
+
+
+@router.message(DepartmentManagementStates.waiting_for_department_name)
+async def process_new_department(message: Message, state: FSMContext):
+    """Process new department name."""
+    dept_name = message.text.strip()
+
+    if len(dept_name) < 3:
+        await message.answer("Bo'lim nomi juda qisqa. Kamida 3 ta belgidan iborat bo'lishi kerak:")
+        return
+
+    # Add to database
+    success = await db.add_department(dept_name)
+
+    user_id = message.from_user.id
+    is_admin = await db.is_admin(user_id)
+
+    if success:
+        await message.answer(
+            f"✅ '{dept_name}' bo'limi muvaffaqiyatli qo'shildi!",
+            reply_markup=kb.get_main_menu_keyboard(is_admin)
+        )
+    else:
+        await message.answer(
+            "❌ Xatolik yuz berdi. Ehtimol bu bo'lim allaqachon mavjud.",
+            reply_markup=kb.get_main_menu_keyboard(is_admin)
+        )
+
+    await state.clear()
+
+
+@router.callback_query(F.data == "dept_list")
+async def show_departments_list(callback: CallbackQuery):
+    """Show list of departments for deletion."""
+    departments = await db.get_all_departments()
+
+    if not departments:
+        await callback.answer("Bo'limlar ro'yxati bo'sh", show_alert=True)
+        return
+
+    await callback.message.edit_text(
+        "<b>Bo'limlar ro'yxati:</b>\n\n"
+        "O'chirish uchun bo'limni tanlang:",
+        reply_markup=kb.get_departments_list_keyboard(departments),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("dept_delete_"))
+async def delete_department(callback: CallbackQuery):
+    """Delete a department."""
+    dept_name = callback.data.replace("dept_delete_", "")
+
+    success = await db.delete_department(dept_name)
+
+    if success:
+        await callback.answer(f"✅ '{dept_name}' o'chirildi", show_alert=True)
+
+        # Refresh list
+        departments = await db.get_all_departments()
+        if departments:
+            await callback.message.edit_text(
+                "<b>Bo'limlar ro'yxati:</b>\n\n"
+                "O'chirish uchun bo'limni tanlang:",
+                reply_markup=kb.get_departments_list_keyboard(departments),
+                parse_mode="HTML"
+            )
+        else:
+            await callback.message.edit_text(
+                "Barcha bo'limlar o'chirildi.",
+                reply_markup=kb.get_departments_management_keyboard()
+            )
+    else:
+        await callback.answer("❌ Xatolik yuz berdi", show_alert=True)

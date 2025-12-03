@@ -49,10 +49,13 @@ async def process_full_name(message: Message, state: FSMContext):
     # Save full name to state
     await state.update_data(full_name=full_name)
 
+    # Get departments from database
+    departments = await db.get_all_departments()
+
     # Ask for department
     await message.answer(
         "Ajoyib! Endi ishlaydigan bo'limingizni tanlang:",
-        reply_markup=kb.get_departments_keyboard()
+        reply_markup=kb.get_departments_keyboard(departments)
     )
     await state.set_state(RegistrationStates.waiting_for_department)
 

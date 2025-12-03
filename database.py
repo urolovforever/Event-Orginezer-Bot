@@ -54,7 +54,28 @@ class Database:
                 )
             ''')
 
+            # Departments table (for admin management)
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS departments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    is_active INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
             await db.commit()
+
+            # Insert default departments if table is empty
+            async with db.execute('SELECT COUNT(*) FROM departments') as cursor:
+                count = (await cursor.fetchone())[0]
+                if count == 0:
+                    for dept in config.DEPARTMENTS:
+                        await db.execute(
+                            'INSERT INTO departments (name) VALUES (?)',
+                            (dept,)
+                        )
+                    await db.commit()
 
     # User CRUD operations
     async def add_user(self, telegram_id: int, full_name: str, department: str, phone: str) -> bool:
@@ -272,6 +293,47 @@ class Database:
             ) as cursor:
                 row = await cursor.fetchone()
                 return row[0] if row else 0
+
+    # Department operations
+    async def get_all_departments(self, active_only: bool = True) -> List[str]:
+        """Get all departments."""
+        async with aiosqlite.connect(self.db_path) as db:
+            query = 'SELECT name FROM departments'
+            if active_only:
+                query += ' WHERE is_active = 1'
+            query += ' ORDER BY name'
+
+            async with db.execute(query) as cursor:
+                rows = await cursor.fetchall()
+                return [row[0] for row in rows]
+
+    async def add_department(self, name: str) -> bool:
+        """Add a new department."""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute(
+                    'INSERT INTO departments (name) VALUES (?)',
+                    (name,)
+                )
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error adding department: {e}")
+            return False
+
+    async def delete_department(self, name: str) -> bool:
+        """Soft delete a department."""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute(
+                    'UPDATE departments SET is_active = 0 WHERE name = ?',
+                    (name,)
+                )
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error deleting department: {e}")
+            return False
 
 
 # Global database instance
