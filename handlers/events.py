@@ -620,7 +620,7 @@ async def process_new_field_value(message: Message, state: FSMContext):
                         f"📅 Sana: {event['date']}\n"
                         f"🕐 Vaqt: {event['time']}\n"
                         f"📍 Joy: {event['place']}\n"
-                        f"💬 Izoh: {comment}\n\n"
+                        f"💬 Izoh: {event.get('comment', '')}\n\n"
                         f"👤 Mas'ul: {event['creator_name']}\n"
                         f"🏢 Bo'lim: {event['creator_department']}\n"
                         f"📱 Telefon: {event['creator_phone']}"
