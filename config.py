@@ -45,4 +45,4 @@ DEPARTMENTS = [
 ]
 
 # Reminder settings (in hours before event)
-REMINDER_HOURS = [24, 3]  # 1 day and 3 hours before event
+REMINDER_HOURS = [24, 3, 1]  # 1 day, 3 hours, and 1 hour before event
