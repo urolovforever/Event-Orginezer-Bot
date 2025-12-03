@@ -3,6 +3,7 @@ import aiosqlite
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 import config
+import pytz
 
 
 class Database:
@@ -11,6 +12,23 @@ class Database:
     def __init__(self, db_path: str = config.DATABASE_PATH):
         """Initialize database connection."""
         self.db_path = db_path
+
+    def _convert_utc_to_local(self, utc_timestamp_str: str) -> str:
+        """Convert UTC timestamp string to local timezone."""
+        try:
+            # Parse UTC timestamp
+            utc_dt = datetime.strptime(utc_timestamp_str, '%Y-%m-%d %H:%M:%S')
+            utc_dt = pytz.utc.localize(utc_dt)
+
+            # Convert to local timezone
+            local_tz = pytz.timezone(config.TIMEZONE)
+            local_dt = utc_dt.astimezone(local_tz)
+
+            # Return formatted string
+            return local_dt.strftime('%Y-%m-%d %H:%M:%S')
+        except Exception as e:
+            print(f"Error converting timestamp: {e}")
+            return utc_timestamp_str
 
     async def init_db(self):
         """Initialize database tables."""
@@ -143,7 +161,13 @@ class Database:
                 (event_id,)
             ) as cursor:
                 row = await cursor.fetchone()
-                return dict(row) if row else None
+                if row:
+                    event = dict(row)
+                    # Convert UTC timestamp to local timezone
+                    if 'created_at' in event and event['created_at']:
+                        event['created_at'] = self._convert_utc_to_local(event['created_at'])
+                    return event
+                return None
 
     async def get_upcoming_events(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get all upcoming events (not cancelled, date >= today)."""
@@ -162,7 +186,14 @@ class Database:
 
             async with db.execute(query) as cursor:
                 rows = await cursor.fetchall()
-                return [dict(row) for row in rows]
+                events = []
+                for row in rows:
+                    event = dict(row)
+                    # Convert UTC timestamp to local timezone
+                    if 'created_at' in event and event['created_at']:
+                        event['created_at'] = self._convert_utc_to_local(event['created_at'])
+                    events.append(event)
+                return events
 
     async def get_events_by_date(self, date: str) -> List[Dict[str, Any]]:
         """Get events by specific date."""
@@ -177,7 +208,14 @@ class Database:
                 (date,)
             ) as cursor:
                 rows = await cursor.fetchall()
-                return [dict(row) for row in rows]
+                events = []
+                for row in rows:
+                    event = dict(row)
+                    # Convert UTC timestamp to local timezone
+                    if 'created_at' in event and event['created_at']:
+                        event['created_at'] = self._convert_utc_to_local(event['created_at'])
+                    events.append(event)
+                return events
 
     async def get_events_by_user(self, telegram_id: int) -> List[Dict[str, Any]]:
         """Get all events created by a specific user."""
@@ -192,7 +230,14 @@ class Database:
                 (telegram_id,)
             ) as cursor:
                 rows = await cursor.fetchall()
-                return [dict(row) for row in rows]
+                events = []
+                for row in rows:
+                    event = dict(row)
+                    # Convert UTC timestamp to local timezone
+                    if 'created_at' in event and event['created_at']:
+                        event['created_at'] = self._convert_utc_to_local(event['created_at'])
+                    events.append(event)
+                return events
 
     async def update_event(self, event_id: int, **kwargs) -> bool:
         """Update event fields."""
