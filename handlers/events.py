@@ -479,7 +479,7 @@ def format_event_text(event: dict, detailed: bool = False) -> str:
         f"<b>{event['title']}</b>\n"
         f"📅 {event['date']} – {event['time']}\n"
         f"📍 {event['place']}\n"
-        f"💬 Izoh: {event.get('comment', 'Izoh yo\\'q')}"
+        f"💬 Izoh: {event.get('comment', 'Izoh yo‘q')}"
     )
 
     if detailed:
@@ -490,3 +490,4 @@ def format_event_text(event: dict, detailed: bool = False) -> str:
         )
 
     return text
+
