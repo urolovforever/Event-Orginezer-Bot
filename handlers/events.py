@@ -473,6 +473,153 @@ async def cancel_event(callback: CallbackQuery):
         await callback.answer("Xatolik yuz berdi", show_alert=True)
 
 
+# ========== EDIT EVENT HANDLERS ==========
+
+@router.callback_query(F.data.startswith("edit_event_"))
+async def start_edit_event(callback: CallbackQuery, state: FSMContext):
+    """Start editing an event."""
+    event_id = int(callback.data.split("_")[2])
+    event = await db.get_event(event_id)
+
+    if not event:
+        await callback.answer("Tadbir topilmadi", show_alert=True)
+        return
+
+    # Check if user is the creator
+    if event['created_by_user_id'] != callback.from_user.id:
+        await callback.answer("Siz bu tadbirni tahrirlash huquqiga ega emassiz", show_alert=True)
+        return
+
+    # Save event ID to state
+    await state.update_data(editing_event_id=event_id)
+
+    # Show fields to edit
+    await callback.message.edit_text(
+        f"<b>Tadbir:</b> {event['title']}\n\n"
+        "Qaysi maydonni tahrirlashni xohlaysiz?",
+        reply_markup=kb.get_edit_event_fields_keyboard(),
+        parse_mode="HTML"
+    )
+    await state.set_state(EditEventStates.selecting_field)
+    await callback.answer()
+
+
+@router.callback_query(EditEventStates.selecting_field, F.data.startswith("edit_field_"))
+async def select_field_to_edit(callback: CallbackQuery, state: FSMContext):
+    """Select which field to edit."""
+    field = callback.data.split("_")[2]
+    await state.update_data(editing_field=field)
+
+    field_names = {
+        "title": "tadbir nomi",
+        "date": "sana (DD.MM.YYYY)",
+        "time": "vaqt (HH:MM)",
+        "place": "joy",
+        "comment": "izoh"
+    }
+
+    await callback.message.edit_text(
+        f"Yangi {field_names[field]}ni kiriting:",
+        reply_markup=None
+    )
+    await state.set_state(EditEventStates.waiting_for_new_value)
+    await callback.answer()
+
+
+@router.callback_query(EditEventStates.selecting_field, F.data == "back_to_event")
+async def back_to_event_from_edit(callback: CallbackQuery, state: FSMContext):
+    """Cancel editing and go back to event."""
+    data = await state.get_data()
+    event_id = data.get('editing_event_id')
+    await state.clear()
+
+    if event_id:
+        event = await db.get_event(event_id)
+        if event:
+            text = format_event_text(event, detailed=True)
+            user_id = callback.from_user.id
+            is_creator = event['created_by_user_id'] == user_id
+
+            await callback.message.edit_text(
+                text,
+                reply_markup=kb.get_event_actions_keyboard(event_id, is_creator),
+                parse_mode="HTML"
+            )
+    await callback.answer()
+
+
+@router.message(EditEventStates.waiting_for_new_value)
+async def process_new_field_value(message: Message, state: FSMContext):
+    """Process the new value for the field."""
+    data = await state.get_data()
+    field = data.get('editing_field')
+    event_id = data.get('editing_event_id')
+    new_value = message.text.strip()
+
+    # Validate based on field type
+    if field == "date":
+        if not re.match(r'^\d{2}\.\d{2}\.\d{4}$', new_value):
+            await message.answer(
+                "❌ Noto'g'ri format. Iltimos, sanani DD.MM.YYYY formatida kiriting:"
+            )
+            return
+
+        try:
+            day, month, year = map(int, new_value.split('.'))
+            event_date = datetime(year, month, day)
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            if event_date < today:
+                await message.answer("❌ Tadbir sanasi o'tmishda bo'lishi mumkin emas:")
+                return
+        except ValueError:
+            await message.answer("❌ Noto'g'ri sana. Iltimos, to'g'ri sanani kiriting:")
+            return
+
+    elif field == "time":
+        if not re.match(r'^\d{2}:\d{2}$', new_value):
+            await message.answer(
+                "❌ Noto'g'ri format. Iltimos, vaqtni HH:MM formatida kiriting:"
+            )
+            return
+
+        try:
+            hour, minute = map(int, new_value.split(':'))
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                raise ValueError
+        except ValueError:
+            await message.answer("❌ Noto'g'ri vaqt. Iltimos, to'g'ri vaqtni kiriting:")
+            return
+
+    elif field == "title" and len(new_value) < 3:
+        await message.answer("Tadbir nomi juda qisqa. Kamida 3 ta belgidan iborat bo'lishi kerak:")
+        return
+
+    elif field == "place" and len(new_value) < 2:
+        await message.answer("Joy nomi juda qisqa:")
+        return
+
+    # Update in database
+    success = await db.update_event(event_id, **{field: new_value})
+
+    if success:
+        # Update in Google Sheets
+        event = await db.get_event(event_id)
+        if event and sheets_manager.is_connected():
+            sheets_manager.update_event(event_id, event)
+
+        user_id = message.from_user.id
+        is_admin = await db.is_admin(user_id)
+
+        await message.answer(
+            "✅ Tadbir muvaffaqiyatli yangilandi!",
+            reply_markup=kb.get_main_menu_keyboard(is_admin)
+        )
+    else:
+        await message.answer("❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.")
+
+    await state.clear()
+
+
 def format_event_text(event: dict, detailed: bool = False) -> str:
     """Format event information as text."""
     text = (

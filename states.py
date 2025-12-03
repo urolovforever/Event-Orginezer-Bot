@@ -25,3 +25,8 @@ class EditEventStates(StatesGroup):
     selecting_field = State()
     waiting_for_new_value = State()
     waiting_for_confirmation = State()
+
+
+class DepartmentManagementStates(StatesGroup):
+    """States for department management."""
+    waiting_for_department_name = State()
