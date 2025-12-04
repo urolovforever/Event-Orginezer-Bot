@@ -45,11 +45,16 @@ class ReminderScheduler:
             now = datetime.now(pytz.timezone(config.TIMEZONE))
             events = await db.get_upcoming_events()
 
+            print(f"🔍 Checking reminders at {now.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"📋 Found {len(events)} upcoming events")
+
             for event in events:
                 await self._check_event_reminders(event, now)
 
         except Exception as e:
-            print(f"Error checking reminders: {e}")
+            print(f"❌ Error checking reminders: {e}")
+            import traceback
+            traceback.print_exc()
 
     async def _check_event_reminders(self, event: dict, now: datetime):
         """Check and send reminders for a specific event."""
@@ -57,7 +62,10 @@ class ReminderScheduler:
             # Parse event date and time
             event_datetime = self._parse_event_datetime(event['date'], event['time'])
             if not event_datetime:
+                print(f"⚠️ Could not parse datetime for event {event.get('id', 'unknown')}: {event.get('date')} {event.get('time')}")
                 return
+
+            print(f"📅 Checking event '{event.get('title', 'Unknown')}' scheduled for {event_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
 
             # Check each reminder time
             for hours_before in config.REMINDER_HOURS:
@@ -66,15 +74,23 @@ class ReminderScheduler:
 
                 # Check if it's time to send reminder
                 time_diff = (reminder_time - now).total_seconds()
+                time_diff_minutes = time_diff / 60
+
+                print(f"  ⏰ {hours_before}h reminder: {time_diff_minutes:.1f} minutes until reminder time")
 
                 # Send reminder if it's within the next 30 minutes and hasn't been sent
                 if 0 <= time_diff <= 1800:  # 1800 seconds = 30 minutes
                     if not await db.is_reminder_sent(event['id'], reminder_type):
+                        print(f"  📤 Sending {hours_before}h reminder for event {event['id']}")
                         await self._send_reminder(event, hours_before)
                         await db.add_reminder(event['id'], reminder_type)
+                    else:
+                        print(f"  ✓ {hours_before}h reminder already sent")
 
         except Exception as e:
-            print(f"Error checking event reminders: {e}")
+            print(f"❌ Error checking event reminders: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _parse_event_datetime(self, date_str: str, time_str: str) -> Optional[datetime]:
         """Parse event date and time strings into datetime object."""
@@ -107,7 +123,9 @@ class ReminderScheduler:
             print(f"📤 Sending reminder to chat_id: {config.MEDIA_GROUP_CHAT_ID}")
 
             # Format time description
-            if hours_before == 24:
+            if hours_before == 72:
+                time_desc = "3 kun"
+            elif hours_before == 24:
                 time_desc = "1 kun"
             else:
                 time_desc = f"{hours_before} soat"
@@ -118,7 +136,7 @@ class ReminderScheduler:
                 f"📅 Sana: {event['date']}\n"
                 f"🕐 Vaqt: {event['time']}\n"
                 f"📍 Joy: {event['place']}\n"
-                f"💬 Izoh: {event.get('comment', 'Izoh yo‘q')}\n\n"
+                f"💬 Izoh: {event.get('comment', 'Izoh yo'q')}\n\n"
                 f"👤 Mas'ul: {event['creator_name']}\n"
                 f"🏢 Bo'lim: {event['creator_department']}\n"
                 f"📱 Telefon: {event['creator_phone']}\n\n"
@@ -131,10 +149,12 @@ class ReminderScheduler:
                 parse_mode="HTML"
             )
 
-            print(f"Reminder sent for event {event['id']} ({hours_before}h before)")
+            print(f"✅ Reminder sent for event {event['id']} ({hours_before}h before)")
 
         except Exception as e:
-            print(f"Error sending reminder: {e}")
+            print(f"❌ Error sending reminder: {e}")
+            import traceback
+            traceback.print_exc()
 
     async def send_immediate_notification(self, event: dict):
         """Send immediate notification about new event to media group."""
