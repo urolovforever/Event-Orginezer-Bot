@@ -4,9 +4,11 @@ from datetime import datetime, timedelta
 from typing import Optional
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 import pytz
 import config
 from database import db
+from google_sheets import sheets_manager
 
 
 class ReminderScheduler:
@@ -28,6 +30,15 @@ class ReminderScheduler:
                 id='check_reminders',
                 replace_existing=True
             )
+
+            # Mark past events daily at 00:05 (5 minutes after midnight)
+            self.scheduler.add_job(
+                self.mark_past_events_job,
+                trigger=CronTrigger(hour=0, minute=5),
+                id='mark_past_events',
+                replace_existing=True
+            )
+
             self.scheduler.start()
             self.running = True
             print("Reminder scheduler started")
@@ -188,5 +199,19 @@ class ReminderScheduler:
 
         except Exception as e:
             print(f"❌ Error sending immediate notification: {e}")
+            import traceback
+            traceback.print_exc()
+
+    async def mark_past_events_job(self):
+        """Daily job to mark past events in Google Sheets with gray background."""
+        try:
+            print("🔍 Running daily task: marking past events in Google Sheets")
+            if sheets_manager.is_connected():
+                sheets_manager.mark_past_events()
+                print("✅ Past events marked successfully")
+            else:
+                print("⚠️ Google Sheets not connected, skipping mark past events")
+        except Exception as e:
+            print(f"❌ Error in mark_past_events_job: {e}")
             import traceback
             traceback.print_exc()
