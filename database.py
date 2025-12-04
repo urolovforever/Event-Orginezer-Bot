@@ -217,7 +217,7 @@ class Database:
                 return [dict(row) for row in rows]
 
     async def update_event(self, event_id: int, **kwargs) -> bool:
-        """Update event fields."""
+        """Update event fields and clear old reminders."""
         try:
             async with aiosqlite.connect(self.db_path) as db:
                 # Build update query dynamically
@@ -236,6 +236,11 @@ class Database:
 
                 await db.execute(query, values)
                 await db.commit()
+
+                # ✅ Clear old reminders for this event
+                await db.execute("DELETE FROM reminders WHERE event_id = ?", (event_id,))
+                await db.commit()
+
                 return True
         except Exception as e:
             print(f"Error updating event: {e}")

@@ -461,7 +461,7 @@ async def cancel_event(callback: CallbackQuery):
                     f"📅 Sana: {event['date']}\n"
                     f"🕐 Vaqt: {event['time']}\n"
                     f"📍 Joy: {event['place']}\n"
-                    f"💬 Izoh: {event.get('comment', 'Izoh yo\'q')}\n\n"
+                    f"💬 Izoh: {event.get('comment', 'Izoh yoʼq')}\n\n"
                     f"👤 Mas'ul: {event['creator_name']}\n"
                     f"🏢 Bo'lim: {event['creator_department']}\n"
                     f"📱 Telefon: {event['creator_phone']}"
