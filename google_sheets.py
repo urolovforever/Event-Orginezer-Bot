@@ -130,19 +130,31 @@ class GoogleSheetsManager:
             return False
 
         try:
+            print(f"🔄 Updating event {event_id} in Google Sheets")
+
             # Find and delete the old row
             cell = self.worksheet.find(str(event_id))
             if not cell:
-                return False
+                print(f"⚠️ Event {event_id} not found in Google Sheets, adding as new")
+                return self.add_event(event)
 
+            print(f"✓ Found event {event_id} at row {cell.row}, deleting old data")
             self.worksheet.delete_rows(cell.row)
 
-            # Re-add the event with updated data (will be inserted in correct sorted position)
+            # Re-add the event with updated data
+            print(f"✓ Re-adding updated event {event_id}")
             return self.add_event(event)
 
         except Exception as e:
-            print(f"Error updating event in Google Sheets: {e}")
-            return False
+            print(f"❌ Error updating event in Google Sheets: {e}")
+            import traceback
+            traceback.print_exc()
+            # Try to add it anyway
+            try:
+                print(f"⚠️ Attempting to add event {event_id} as new after error")
+                return self.add_event(event)
+            except:
+                return False
 
     def delete_event(self, event_id: int) -> bool:
         """Delete an event from Google Sheets."""
@@ -150,16 +162,23 @@ class GoogleSheetsManager:
             return False
 
         try:
+            print(f"🗑️ Deleting event {event_id} from Google Sheets")
+
             # Find the row with the event ID
             cell = self.worksheet.find(str(event_id))
             if not cell:
-                return False
+                print(f"⚠️ Event {event_id} not found in Google Sheets (may already be deleted)")
+                return True  # Return True since the end result is the same
 
+            print(f"✓ Found event {event_id} at row {cell.row}, deleting")
             self.worksheet.delete_rows(cell.row)
+            print(f"✅ Successfully deleted event {event_id}")
             return True
 
         except Exception as e:
-            print(f"Error deleting event from Google Sheets: {e}")
+            print(f"❌ Error deleting event from Google Sheets: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def mark_event_cancelled(self, event_id: int) -> bool:
@@ -168,12 +187,16 @@ class GoogleSheetsManager:
             return False
 
         try:
+            print(f"❌ Marking event {event_id} as cancelled in Google Sheets")
+
             # Find the row with the event ID
             cell = self.worksheet.find(str(event_id))
             if not cell:
+                print(f"⚠️ Event {event_id} not found in Google Sheets")
                 return False
 
             row_num = cell.row
+            print(f"✓ Found event {event_id} at row {row_num}")
 
             # Add "[BEKOR QILINDI]" prefix to the title
             title_cell = self.worksheet.cell(row_num, 2)  # Column B (title)
@@ -182,16 +205,23 @@ class GoogleSheetsManager:
             if not current_title.startswith("[BEKOR QILINDI]"):
                 new_title = f"[BEKOR QILINDI] {current_title}"
                 self.worksheet.update_cell(row_num, 2, new_title)
+                print(f"✓ Updated title to: {new_title}")
 
                 # Also mark the row with red background
                 self.worksheet.format(f'A{row_num}:J{row_num}', {
                     'backgroundColor': {'red': 1.0, 'green': 0.8, 'blue': 0.8}
                 })
+                print(f"✓ Applied red background")
+            else:
+                print(f"✓ Event already marked as cancelled")
 
+            print(f"✅ Successfully marked event {event_id} as cancelled")
             return True
 
         except Exception as e:
-            print(f"Error marking event as cancelled in Google Sheets: {e}")
+            print(f"❌ Error marking event as cancelled in Google Sheets: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def is_connected(self) -> bool:
