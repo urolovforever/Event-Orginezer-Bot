@@ -73,6 +73,14 @@ async def on_startup(bot: Bot):
     from handlers import events as events_handler
     events_handler.reminder_scheduler = reminder_scheduler
 
+    # Mark past events in Google Sheets with gray background
+    if sheets_manager.is_connected():
+        try:
+            sheets_manager.mark_past_events()
+            logger.info("Marked past events in Google Sheets")
+        except Exception as e:
+            logger.error(f"Error marking past events: {e}")
+
     logger.info("Bot startup complete!")
 
 
