@@ -137,11 +137,15 @@ class Database:
                        comment: str, created_by_user_id: int) -> Optional[int]:
         """Add a new event to the database."""
         try:
+            # Get current time in Tashkent timezone
+            local_tz = pytz.timezone(config.TIMEZONE)
+            local_now = datetime.now(local_tz).strftime('%Y-%m-%d %H:%M:%S')
+
             async with aiosqlite.connect(self.db_path) as db:
                 cursor = await db.execute(
-                    '''INSERT INTO events (title, date, time, place, comment, created_by_user_id)
-                       VALUES (?, ?, ?, ?, ?, ?)''',
-                    (title, date, time, place, comment, created_by_user_id)
+                    '''INSERT INTO events (title, date, time, place, comment, created_by_user_id, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                    (title, date, time, place, comment, created_by_user_id, local_now)
                 )
                 await db.commit()
                 return cursor.lastrowid
