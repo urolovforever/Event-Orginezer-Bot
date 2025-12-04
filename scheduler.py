@@ -23,10 +23,10 @@ class ReminderScheduler:
     def start(self):
         """Start the scheduler."""
         if not self.running:
-            # Check for reminders every 30 minutes
+            # Check for reminders every 5 minutes
             self.scheduler.add_job(
                 self.check_reminders,
-                trigger=IntervalTrigger(minutes=30),
+                trigger=IntervalTrigger(minutes=5),
                 id='check_reminders',
                 replace_existing=True
             )
@@ -89,9 +89,9 @@ class ReminderScheduler:
 
                 print(f"  ⏰ {hours_before}h reminder: {time_diff_minutes:.1f} minutes until reminder time")
 
-                # Send reminder if it's within the next 60 minutes and hasn't been sent
-                # Window is 60 minutes to avoid missing reminders due to 30-minute check interval
-                if 0 <= time_diff <= 3600:  # 3600 seconds = 60 minutes
+                # Send reminder if it's within the next 10 minutes and hasn't been sent
+                # Window is 10 minutes to avoid missing reminders due to 5-minute check interval
+                if 0 <= time_diff <= 600:  # 600 seconds = 10 minutes
                     if not await db.is_reminder_sent(event['id'], reminder_type):
                         print(f"  📤 Sending {hours_before}h reminder for event {event['id']}")
                         await self._send_reminder(event, hours_before)
