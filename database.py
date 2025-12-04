@@ -165,13 +165,7 @@ class Database:
                 (event_id,)
             ) as cursor:
                 row = await cursor.fetchone()
-                if row:
-                    event = dict(row)
-                    # Convert UTC timestamp to local timezone
-                    if 'created_at' in event and event['created_at']:
-                        event['created_at'] = self._convert_utc_to_local(event['created_at'])
-                    return event
-                return None
+                return dict(row) if row else None
 
     async def get_upcoming_events(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get all upcoming events (not cancelled, date >= today)."""
@@ -190,14 +184,7 @@ class Database:
 
             async with db.execute(query) as cursor:
                 rows = await cursor.fetchall()
-                events = []
-                for row in rows:
-                    event = dict(row)
-                    # Convert UTC timestamp to local timezone
-                    if 'created_at' in event and event['created_at']:
-                        event['created_at'] = self._convert_utc_to_local(event['created_at'])
-                    events.append(event)
-                return events
+                return [dict(row) for row in rows]
 
     async def get_events_by_date(self, date: str) -> List[Dict[str, Any]]:
         """Get events by specific date."""
@@ -212,14 +199,7 @@ class Database:
                 (date,)
             ) as cursor:
                 rows = await cursor.fetchall()
-                events = []
-                for row in rows:
-                    event = dict(row)
-                    # Convert UTC timestamp to local timezone
-                    if 'created_at' in event and event['created_at']:
-                        event['created_at'] = self._convert_utc_to_local(event['created_at'])
-                    events.append(event)
-                return events
+                return [dict(row) for row in rows]
 
     async def get_events_by_user(self, telegram_id: int) -> List[Dict[str, Any]]:
         """Get all events created by a specific user."""
@@ -234,14 +214,7 @@ class Database:
                 (telegram_id,)
             ) as cursor:
                 rows = await cursor.fetchall()
-                events = []
-                for row in rows:
-                    event = dict(row)
-                    # Convert UTC timestamp to local timezone
-                    if 'created_at' in event and event['created_at']:
-                        event['created_at'] = self._convert_utc_to_local(event['created_at'])
-                    events.append(event)
-                return events
+                return [dict(row) for row in rows]
 
     async def update_event(self, event_id: int, **kwargs) -> bool:
         """Update event fields."""

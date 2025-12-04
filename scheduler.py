@@ -78,8 +78,9 @@ class ReminderScheduler:
 
                 print(f"  ⏰ {hours_before}h reminder: {time_diff_minutes:.1f} minutes until reminder time")
 
-                # Send reminder if it's within the next 30 minutes and hasn't been sent
-                if 0 <= time_diff <= 1800:  # 1800 seconds = 30 minutes
+                # Send reminder if it's within the next 60 minutes and hasn't been sent
+                # Window is 60 minutes to avoid missing reminders due to 30-minute check interval
+                if 0 <= time_diff <= 3600:  # 3600 seconds = 60 minutes
                     if not await db.is_reminder_sent(event['id'], reminder_type):
                         print(f"  📤 Sending {hours_before}h reminder for event {event['id']}")
                         await self._send_reminder(event, hours_before)
