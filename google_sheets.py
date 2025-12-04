@@ -325,6 +325,93 @@ class GoogleSheetsManager:
             traceback.print_exc()
             return False
 
+    def reorganize_events(self):
+        """Reorganize all events: future events at top sorted by date, past events at bottom with gray background."""
+        if not self._initialized:
+            return False
+
+        try:
+            local_tz = pytz.timezone(config.TIMEZONE)
+            now = datetime.now(local_tz)
+
+            # Get all existing rows (skip header)
+            all_values = self.worksheet.get_all_values()
+            if len(all_values) <= 1:  # Only header or empty
+                return True
+
+            header = all_values[0]
+            data_rows = all_values[1:]
+
+            # Separate events into future and past
+            future_events = []
+            past_events = []
+
+            for row in data_rows:
+                if len(row) < 10:  # Skip incomplete rows
+                    continue
+
+                try:
+                    row_date = row[2]  # Sana column
+                    row_time = row[3]  # Vaqt column
+
+                    if not row_date or not row_time:
+                        continue
+
+                    # Parse row date/time
+                    r_day, r_month, r_year = map(int, row_date.split('.'))
+                    r_hour, r_minute = map(int, row_time.split(':'))
+                    row_datetime = local_tz.localize(datetime(r_year, r_month, r_day, r_hour, r_minute))
+
+                    # Categorize as future or past
+                    if row_datetime >= now:
+                        future_events.append((row_datetime, row))
+                    else:
+                        past_events.append((row_datetime, row))
+
+                except Exception as e:
+                    print(f"Error processing row: {e}")
+                    # If can't parse, add to future events to be safe
+                    future_events.append((now, row))
+                    continue
+
+            # Sort future events by datetime (ascending)
+            future_events.sort(key=lambda x: x[0])
+
+            # Sort past events by datetime (descending - most recent past events first)
+            past_events.sort(key=lambda x: x[0], reverse=True)
+
+            # Clear all data rows (keep header)
+            if len(data_rows) > 0:
+                self.worksheet.delete_rows(2, len(data_rows) + 1)
+
+            # Reconstruct the sheet: future events first, then past events
+            all_sorted_rows = [row for _, row in future_events] + [row for _, row in past_events]
+
+            if all_sorted_rows:
+                # Insert all rows at once
+                for row_data in all_sorted_rows:
+                    self.worksheet.append_row(row_data)
+
+                # Apply gray background to past events
+                if past_events:
+                    start_past_row = len(future_events) + 2  # +2 for header and 1-indexed
+                    end_past_row = start_past_row + len(past_events) - 1
+
+                    for row_num in range(start_past_row, end_past_row + 1):
+                        self.worksheet.format(f'A{row_num}:J{row_num}', {
+                            'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
+                        })
+
+                print(f"Reorganized events: {len(future_events)} future, {len(past_events)} past")
+
+            return True
+
+        except Exception as e:
+            print(f"Error reorganizing events: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
 
 # Global Google Sheets manager instance
 sheets_manager = GoogleSheetsManager()

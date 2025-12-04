@@ -73,13 +73,13 @@ async def on_startup(bot: Bot):
     from handlers import events as events_handler
     events_handler.reminder_scheduler = reminder_scheduler
 
-    # Mark past events in Google Sheets with gray background
+    # Reorganize events in Google Sheets (future at top, past at bottom with gray background)
     if sheets_manager.is_connected():
         try:
-            sheets_manager.mark_past_events()
-            logger.info("Marked past events in Google Sheets")
+            sheets_manager.reorganize_events()
+            logger.info("Reorganized events in Google Sheets")
         except Exception as e:
-            logger.error(f"Error marking past events: {e}")
+            logger.error(f"Error reorganizing events: {e}")
 
     logger.info("Bot startup complete!")
 

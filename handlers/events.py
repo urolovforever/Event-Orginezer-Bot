@@ -9,6 +9,7 @@ import keyboards as kb
 from google_sheets import sheets_manager
 import config
 import re
+import pytz
 
 router = Router()
 
@@ -381,15 +382,39 @@ async def back_to_main_menu_from_schedule(message: Message):
 async def show_my_events(message: Message):
     """Show user's events."""
     user_id = message.from_user.id
-    events = await db.get_events_by_user(user_id)
+    all_events = await db.get_events_by_user(user_id)
 
-    if not events:
+    if not all_events:
         await message.answer("Sizda hali tadbirlar yo'q.")
         return
 
+    # Filter out past events - only show future events
+    local_tz = pytz.timezone(config.TIMEZONE)
+    now = datetime.now(local_tz)
+
+    future_events = []
+    for event in all_events:
+        try:
+            # Parse event date and time
+            day, month, year = map(int, event['date'].split('.'))
+            hour, minute = map(int, event['time'].split(':'))
+            event_datetime = local_tz.localize(datetime(year, month, day, hour, minute))
+
+            # Only include future events
+            if event_datetime >= now:
+                future_events.append(event)
+        except Exception as e:
+            print(f"Error parsing event datetime: {e}")
+            # If parsing fails, include the event anyway
+            future_events.append(event)
+
+    if not future_events:
+        await message.answer("Sizda hozirda kelajakdagi tadbirlar yo'q.\n\nBarcha tadbirlaringiz allaqachon o'tib ketgan.")
+        return
+
     await message.answer(
-        "Sizning tadbirlaringiz:",
-        reply_markup=kb.get_my_events_keyboard(events)
+        f"Sizning kelajakdagi tadbirlaringiz ({len(future_events)} ta):",
+        reply_markup=kb.get_my_events_keyboard(future_events)
     )
 
 

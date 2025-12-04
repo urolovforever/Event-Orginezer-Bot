@@ -31,11 +31,11 @@ class ReminderScheduler:
                 replace_existing=True
             )
 
-            # Mark past events daily at 00:05 (5 minutes after midnight)
+            # Reorganize events daily at 00:05 (5 minutes after midnight)
             self.scheduler.add_job(
-                self.mark_past_events_job,
+                self.reorganize_events_job,
                 trigger=CronTrigger(hour=0, minute=5),
-                id='mark_past_events',
+                id='reorganize_events',
                 replace_existing=True
             )
 
@@ -202,16 +202,16 @@ class ReminderScheduler:
             import traceback
             traceback.print_exc()
 
-    async def mark_past_events_job(self):
-        """Daily job to mark past events in Google Sheets with gray background."""
+    async def reorganize_events_job(self):
+        """Daily job to reorganize events in Google Sheets (future at top, past at bottom with gray background)."""
         try:
-            print("🔍 Running daily task: marking past events in Google Sheets")
+            print("🔍 Running daily task: reorganizing events in Google Sheets")
             if sheets_manager.is_connected():
-                sheets_manager.mark_past_events()
-                print("✅ Past events marked successfully")
+                sheets_manager.reorganize_events()
+                print("✅ Events reorganized successfully")
             else:
-                print("⚠️ Google Sheets not connected, skipping mark past events")
+                print("⚠️ Google Sheets not connected, skipping reorganize events")
         except Exception as e:
-            print(f"❌ Error in mark_past_events_job: {e}")
+            print(f"❌ Error in reorganize_events_job: {e}")
             import traceback
             traceback.print_exc()
