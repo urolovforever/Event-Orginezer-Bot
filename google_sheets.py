@@ -345,9 +345,12 @@ class GoogleSheetsManager:
             # Separate events into future and past
             future_events = []
             past_events = []
+            skipped_rows = 0
 
-            for row in data_rows:
+            for idx, row in enumerate(data_rows, start=2):  # start=2 for row number
                 if len(row) < 10:  # Skip incomplete rows
+                    print(f"⚠️ Skipping row {idx}: incomplete data (only {len(row)} columns)")
+                    skipped_rows += 1
                     continue
 
                 try:
@@ -355,6 +358,20 @@ class GoogleSheetsManager:
                     row_time = row[3]  # Vaqt column
 
                     if not row_date or not row_time:
+                        print(f"⚠️ Skipping row {idx}: missing date or time")
+                        skipped_rows += 1
+                        continue
+
+                    # Validate date format (DD.MM.YYYY)
+                    if len(row_date.split('.')) != 3:
+                        print(f"⚠️ Skipping row {idx}: invalid date format '{row_date}'")
+                        skipped_rows += 1
+                        continue
+
+                    # Validate time format (HH:MM)
+                    if len(row_time.split(':')) != 2:
+                        print(f"⚠️ Skipping row {idx}: invalid time format '{row_time}'")
+                        skipped_rows += 1
                         continue
 
                     # Parse row date/time
@@ -368,10 +385,13 @@ class GoogleSheetsManager:
                     else:
                         past_events.append((row_datetime, row))
 
+                except ValueError as e:
+                    print(f"⚠️ Skipping row {idx}: invalid data - {e} (date='{row[2] if len(row) > 2 else 'N/A'}', time='{row[3] if len(row) > 3 else 'N/A'}')")
+                    skipped_rows += 1
+                    continue
                 except Exception as e:
-                    print(f"Error processing row: {e}")
-                    # If can't parse, add to future events to be safe
-                    future_events.append((now, row))
+                    print(f"⚠️ Skipping row {idx}: unexpected error - {e}")
+                    skipped_rows += 1
                     continue
 
             # Sort future events by datetime (ascending)
@@ -402,12 +422,15 @@ class GoogleSheetsManager:
                             'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
                         })
 
-                print(f"Reorganized events: {len(future_events)} future, {len(past_events)} past")
+                print(f"✅ Reorganized events: {len(future_events)} future, {len(past_events)} past, {skipped_rows} skipped (corrupted data)")
+
+            else:
+                print(f"⚠️ No valid events found. Skipped {skipped_rows} rows with corrupted data")
 
             return True
 
         except Exception as e:
-            print(f"Error reorganizing events: {e}")
+            print(f"❌ Error reorganizing events: {e}")
             import traceback
             traceback.print_exc()
             return False
