@@ -452,6 +452,29 @@ async def cancel_event(callback: CallbackQuery):
         if sheets_manager.is_connected():
             sheets_manager.mark_event_cancelled(event_id)
 
+        # Send cancellation notification to media group
+        if reminder_scheduler and config.MEDIA_GROUP_CHAT_ID:
+            try:
+                cancellation_msg = (
+                    f"❌ <b>Tadbir bekor qilindi!</b>\n\n"
+                    f"<b>{event['title']}</b>\n\n"
+                    f"📅 Sana: {event['date']}\n"
+                    f"🕐 Vaqt: {event['time']}\n"
+                    f"📍 Joy: {event['place']}\n"
+                    f"💬 Izoh: {event.get('comment', 'Izoh yo\'q')}\n\n"
+                    f"👤 Mas'ul: {event['creator_name']}\n"
+                    f"🏢 Bo'lim: {event['creator_department']}\n"
+                    f"📱 Telefon: {event['creator_phone']}"
+                )
+
+                await reminder_scheduler.bot.send_message(
+                    chat_id=config.MEDIA_GROUP_CHAT_ID,
+                    text=cancellation_msg,
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                print(f"❌ Error sending cancellation notification: {e}")
+
         await callback.answer("Tadbir bekor qilindi", show_alert=True)
         await back_to_my_events(callback)
     else:

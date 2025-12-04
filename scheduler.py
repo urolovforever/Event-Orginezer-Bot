@@ -78,6 +78,13 @@ class ReminderScheduler:
 
             print(f"📅 Checking event '{event.get('title', 'Unknown')}' scheduled for {event_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
 
+            # Check if event hasn't started yet
+            event_time_diff = (event_datetime - now).total_seconds()
+
+            if event_time_diff <= 0:
+                print(f"  ⏭️ Event has already started or passed, skipping reminders")
+                return
+
             # Check each reminder time
             for hours_before in config.REMINDER_HOURS:
                 reminder_time = event_datetime - timedelta(hours=hours_before)
@@ -89,9 +96,12 @@ class ReminderScheduler:
 
                 print(f"  ⏰ {hours_before}h reminder: {time_diff_minutes:.1f} minutes until reminder time")
 
-                # Send reminder if it's within the next 60 minutes and hasn't been sent
-                # Window is 60 minutes to avoid missing reminders due to 30-minute check interval
-                if 0 <= time_diff <= 3600:  # 3600 seconds = 60 minutes
+                # Send reminder if:
+                # 1. Event hasn't started yet (checked above)
+                # 2. Reminder time has passed OR is within next 60 minutes (time_diff <= 3600)
+                # 3. Reminder hasn't been sent yet
+                # This ensures we don't miss reminders if the bot was offline
+                if time_diff <= 3600:  # 3600 seconds = 60 minutes
                     if not await db.is_reminder_sent(event['id'], reminder_type):
                         print(f"  📤 Sending {hours_before}h reminder for event {event['id']}")
                         await self._send_reminder(event, hours_before)
