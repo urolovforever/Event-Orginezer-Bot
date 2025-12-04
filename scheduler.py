@@ -26,7 +26,7 @@ class ReminderScheduler:
             # Check for reminders every 30 minutes
             self.scheduler.add_job(
                 self.check_reminders,
-                trigger=IntervalTrigger(minutes=30),
+                trigger=IntervalTrigger(minutes=1),
                 id='check_reminders',
                 replace_existing=True
             )
@@ -148,11 +148,11 @@ class ReminderScheduler:
                 f"📅 Sana: {event['date']}\n"
                 f"🕐 Vaqt: {event['time']}\n"
                 f"📍 Joy: {event['place']}\n"
-                f"💬 Izoh: {event.get('comment', 'Izoh yo'q')}\n\n"
+                f"💬 Izoh: {event.get('comment', 'Izoh yoʼq')}\n\n"
                 f"👤 Mas'ul: {event['creator_name']}\n"
                 f"🏢 Bo'lim: {event['creator_department']}\n"
                 f"📱 Telefon: {event['creator_phone']}\n\n"
-                f"⏰ Tadbirgacha {time_desc} qoldi!"
+                f"⏰ <b>{time_desc}</b> qoldi!"
             )
 
             await self.bot.send_message(
