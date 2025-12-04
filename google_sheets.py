@@ -87,7 +87,7 @@ class GoogleSheetsManager:
             print(f"Error setting up headers: {e}")
 
     def add_event(self, event: Dict[str, Any]) -> bool:
-        """Add a new event to Google Sheets, sorted by date and time."""
+        """Add a new event to Google Sheets. Events will be reorganized automatically."""
         if not self._initialized:
             return False
 
@@ -109,95 +109,17 @@ class GoogleSheetsManager:
                 event.get('created_at', local_now)
             ]
 
-            # Parse event date and time for sorting and checking if past
-            try:
-                event_date = event.get('date', '')
-                event_time = event.get('time', '')
-                day, month, year = map(int, event_date.split('.'))
-                hour, minute = map(int, event_time.split(':'))
-                event_datetime = local_tz.localize(datetime(year, month, day, hour, minute))
+            # Simply append the event - reorganize_events() will sort and format later
+            self.worksheet.append_row(row_data)
+            print(f"✅ Added event {event.get('id')} to Google Sheets")
 
-                # Check if event is in the past
-                now = datetime.now(local_tz)
-                is_past = event_datetime < now
-
-            except Exception as e:
-                print(f"Error parsing event datetime: {e}")
-                # If parsing fails, append to the end
-                self.worksheet.append_row(row_data)
-                return True
-
-            # Get all existing rows (skip header)
-            all_values = self.worksheet.get_all_values()
-            if len(all_values) <= 1:  # Only header or empty
-                row_num = self.worksheet.append_row(row_data)
-                # Apply gray background for past events
-                if is_past:
-                    new_row_num = 2  # First data row
-                    self.worksheet.format(f'A{new_row_num}:J{new_row_num}', {
-                        'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
-                    })
-                return True
-
-            # If event is in the past, add to the very bottom with gray background
-            if is_past:
-                self.worksheet.append_row(row_data)
-                # Get the row number of the newly added row
-                all_values = self.worksheet.get_all_values()
-                new_row_num = len(all_values)
-                # Apply gray background
-                self.worksheet.format(f'A{new_row_num}:J{new_row_num}', {
-                    'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
-                })
-                print(f"Added past event to bottom row {new_row_num} with gray background")
-                return True
-
-            # For future events, find the correct position to insert (sorted by date/time)
-            # We need to separate past and future events
-            insert_position = None
-            last_future_event_row = None
-
-            for idx, row in enumerate(all_values[1:], start=2):  # Start from row 2 (skip header)
-                if len(row) < 4:  # Not enough columns
-                    continue
-
-                try:
-                    row_date = row[2]  # Sana column
-                    row_time = row[3]  # Vaqt column
-
-                    if not row_date or not row_time:
-                        continue
-
-                    # Parse existing row date/time
-                    r_day, r_month, r_year = map(int, row_date.split('.'))
-                    r_hour, r_minute = map(int, row_time.split(':'))
-                    row_datetime = local_tz.localize(datetime(r_year, r_month, r_day, r_hour, r_minute))
-
-                    # Track last future event
-                    if row_datetime >= now:
-                        last_future_event_row = idx
-                        # If new event is earlier than this future event, insert here
-                        if event_datetime < row_datetime:
-                            insert_position = idx
-                            break
-                except Exception as e:
-                    print(f"Error parsing row {idx}: {e}")
-                    continue
-
-            # Insert at the correct position or after the last future event
-            if insert_position:
-                self.worksheet.insert_row(row_data, insert_position)
-            elif last_future_event_row:
-                # Insert after the last future event (before past events)
-                self.worksheet.insert_row(row_data, last_future_event_row + 1)
-            else:
-                # No future events found, this is the first future event
-                self.worksheet.insert_row(row_data, 2)
+            # Immediately reorganize to maintain proper order
+            self.reorganize_events()
 
             return True
 
         except Exception as e:
-            print(f"Error adding event to Google Sheets: {e}")
+            print(f"❌ Error adding event to Google Sheets: {e}")
             import traceback
             traceback.print_exc()
             return False
