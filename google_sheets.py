@@ -87,15 +87,27 @@ class GoogleSheetsManager:
             print(f"Error setting up headers: {e}")
 
     def add_event(self, event: Dict[str, Any]) -> bool:
-        """Add a new event to Google Sheets, sorted by date and time."""
+        """
+        Add a new event to Google Sheets, sorted by date and time.
+
+        Sorting logic:
+        - Future events are sorted chronologically at the top
+        - Past events are sorted chronologically at the bottom
+        - Maintains separation between future and past events
+
+        Color logic:
+        - Future events: WHITE background (no color)
+        - Past events: GRAY background
+        """
         if not self._initialized:
             return False
 
         try:
-            # Get current time in Tashkent timezone as fallback
+            # Get current time in Tashkent timezone
             local_tz = pytz.timezone(config.TIMEZONE)
             local_now = datetime.now(local_tz).strftime('%Y-%m-%d %H:%M:%S')
 
+            # Prepare row data for insertion
             row_data = [
                 event.get('id', ''),
                 event.get('title', ''),
@@ -109,7 +121,7 @@ class GoogleSheetsManager:
                 event.get('created_at', local_now)
             ]
 
-            # Parse event date and time for sorting and checking if past
+            # Parse event date and time for sorting and past/future check
             try:
                 event_date = event.get('date', '')
                 event_time = event.get('time', '')
@@ -123,37 +135,42 @@ class GoogleSheetsManager:
 
             except Exception as e:
                 print(f"Error parsing event datetime: {e}")
-                # If parsing fails, append to the end
+                # If parsing fails, append to the end without formatting
                 self.worksheet.append_row(row_data)
                 return True
 
             # Get all existing rows (skip header)
             all_values = self.worksheet.get_all_values()
-            if len(all_values) <= 1:  # Only header or empty
-                row_num = self.worksheet.append_row(row_data)
+
+            # Case 1: Empty sheet (only header or no data)
+            if len(all_values) <= 1:
+                self.worksheet.append_row(row_data)
+                new_row_num = 2  # First data row
                 # Apply gray background for past events
                 if is_past:
-                    new_row_num = 2  # First data row
                     self.worksheet.format(f'A{new_row_num}:J{new_row_num}', {
                         'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
                     })
+                    print(f"Added first event (past) to row {new_row_num} with gray background")
+                else:
+                    print(f"Added first event (future) to row {new_row_num}")
                 return True
 
-            # If event is in the past, add to the very bottom with gray background
+            # Case 2: Event is in the past - add to the very bottom with gray background
             if is_past:
                 self.worksheet.append_row(row_data)
                 # Get the row number of the newly added row
                 all_values = self.worksheet.get_all_values()
                 new_row_num = len(all_values)
-                # Apply gray background
+                # Apply gray background for past events
                 self.worksheet.format(f'A{new_row_num}:J{new_row_num}', {
                     'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
                 })
                 print(f"Added past event to bottom row {new_row_num} with gray background")
                 return True
 
-            # For future events, find the correct position to insert (sorted by date/time)
-            # We need to separate past and future events
+            # Case 3: Event is in the future - find correct sorted position
+            # We need to insert in chronological order among future events
             insert_position = None
             last_future_event_row = None
 
@@ -162,8 +179,8 @@ class GoogleSheetsManager:
                     continue
 
                 try:
-                    row_date = row[2]  # Sana column
-                    row_time = row[3]  # Vaqt column
+                    row_date = row[2]  # Sana column (index 2)
+                    row_time = row[3]  # Vaqt column (index 3)
 
                     if not row_date or not row_time:
                         continue
@@ -173,7 +190,7 @@ class GoogleSheetsManager:
                     r_hour, r_minute = map(int, row_time.split(':'))
                     row_datetime = local_tz.localize(datetime(r_year, r_month, r_day, r_hour, r_minute))
 
-                    # Track last future event
+                    # Track last future event row
                     if row_datetime >= now:
                         last_future_event_row = idx
                         # If new event is earlier than this future event, insert here
@@ -184,15 +201,19 @@ class GoogleSheetsManager:
                     print(f"Error parsing row {idx}: {e}")
                     continue
 
-            # Insert at the correct position or after the last future event
+            # Insert at the correct position
             if insert_position:
+                # Insert before the found future event
                 self.worksheet.insert_row(row_data, insert_position)
+                print(f"Inserted future event at row {insert_position}")
             elif last_future_event_row:
-                # Insert after the last future event (before past events)
+                # Insert after the last future event (before past events section)
                 self.worksheet.insert_row(row_data, last_future_event_row + 1)
+                print(f"Inserted future event after last future event at row {last_future_event_row + 1}")
             else:
-                # No future events found, this is the first future event
+                # No future events found, insert at row 2 (becomes first future event)
                 self.worksheet.insert_row(row_data, 2)
+                print(f"Inserted as first future event at row 2")
 
             return True
 
@@ -277,7 +298,14 @@ class GoogleSheetsManager:
         return self._initialized
 
     def mark_past_events(self):
-        """Mark all past events with gray background."""
+        """
+        Mark all past events with gray background.
+
+        Color logic:
+        - Cancelled events (with [BEKOR QILINDI] prefix): RED background - never change
+        - Past events (datetime < now): GRAY background
+        - Future events (datetime >= now): WHITE background (no color)
+        """
         if not self._initialized:
             return False
 
@@ -294,10 +322,17 @@ class GoogleSheetsManager:
                     continue
 
                 try:
+                    # Get event title and date/time
+                    row_title = row[1] if len(row) > 1 else ""  # Tadbir nomi column
                     row_date = row[2]  # Sana column
                     row_time = row[3]  # Vaqt column
 
                     if not row_date or not row_time:
+                        continue
+
+                    # Skip cancelled events - they should stay RED
+                    if row_title.startswith("[BEKOR QILINDI]"):
+                        print(f"Skipping cancelled event at row {idx} (keeping red background)")
                         continue
 
                     # Parse row date/time
@@ -305,12 +340,18 @@ class GoogleSheetsManager:
                     r_hour, r_minute = map(int, row_time.split(':'))
                     row_datetime = local_tz.localize(datetime(r_year, r_month, r_day, r_hour, r_minute))
 
-                    # Mark as past if datetime < now
+                    # Mark as past if datetime < now (GRAY background)
                     if row_datetime < now:
                         self.worksheet.format(f'A{idx}:J{idx}', {
                             'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
                         })
                         print(f"Marked row {idx} as past event (gray background)")
+                    # If event is in future, remove any background color (WHITE)
+                    else:
+                        self.worksheet.format(f'A{idx}:J{idx}', {
+                            'backgroundColor': {'red': 1.0, 'green': 1.0, 'blue': 1.0}
+                        })
+                        print(f"Marked row {idx} as future event (white background)")
 
                 except Exception as e:
                     print(f"Error processing row {idx}: {e}")
