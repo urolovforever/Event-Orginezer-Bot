@@ -43,7 +43,6 @@ def get_events_schedule_reply_keyboard() -> ReplyKeyboardMarkup:
     keyboard.button(text="📆 Bugungi tadbirlar")
     keyboard.button(text="📅 Haftalik jadval")
     keyboard.button(text="📊 Bir oylik jadval")
-    keyboard.button(text="📋 Barcha tadbirlar")
     keyboard.button(text="🔙 Asosiy menyu")
     keyboard.adjust(2)
     return keyboard.as_markup(resize_keyboard=True)
