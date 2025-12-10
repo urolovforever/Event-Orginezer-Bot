@@ -117,15 +117,21 @@ async def show_departments_list(callback: CallbackQuery):
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("dept_delete_"))
+@router.callback_query(F.data.startswith("dept_delete:"))
 async def delete_department(callback: CallbackQuery):
-    """Delete a department."""
-    dept_name = callback.data.replace("dept_delete_", "")
+    """Delete a department safely using its ID."""
+    # Extract the department ID from callback_data
+    dep_id = int(callback.data.split(":")[1])
 
-    success = await db.delete_department(dept_name)
+    # Get the full department info from DB
+    dep = await db.get_department_by_id(dep_id)
+    dep_name = dep["name"]
+
+    # Delete department by ID
+    success = await db.delete_department_by_id(dep_id)
 
     if success:
-        await callback.answer(f"✅ '{dept_name}' o'chirildi", show_alert=True)
+        await callback.answer(f"✅ '{dep_name}' o'chirildi", show_alert=True)
 
         # Refresh list
         departments = await db.get_all_departments()
@@ -143,3 +149,4 @@ async def delete_department(callback: CallbackQuery):
             )
     else:
         await callback.answer("❌ Xatolik yuz berdi", show_alert=True)
+
