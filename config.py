@@ -98,4 +98,5 @@ DEPARTMENTS = [
 ]
 
 # Reminder settings (in hours before event)
-REMINDER_HOURS = [24, 3, 1]  # 1 day, 3 hours, and 1 hour before event
+# Supports fractional hours: 0.5 = 30 minutes, 0.1667 = 10 minutes
+REMINDER_HOURS = [24, 3, 1, 0.5, 0.1667]  # 1 day, 3 hours, 1 hour, 30 minutes, and 10 minutes before event

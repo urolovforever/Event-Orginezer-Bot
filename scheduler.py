@@ -85,7 +85,15 @@ class ReminderScheduler:
 
             for hours_before in config.REMINDER_HOURS:
                 reminder_time = event_datetime - timedelta(hours=hours_before)
-                reminder_type = f"{hours_before}h_before"
+
+                # Create reminder_type identifier based on time unit
+                # For hours >= 1: use hours, for minutes use 'min' suffix
+                if hours_before >= 1:
+                    reminder_type = f"{hours_before}h_before"
+                else:
+                    # Convert to minutes for sub-hour reminders
+                    minutes = int(hours_before * 60)
+                    reminder_type = f"{minutes}min_before"
 
                 time_diff = (reminder_time - now).total_seconds()
 
@@ -115,14 +123,26 @@ class ReminderScheduler:
             print(f"❌ Error parsing datetime '{date_str} {time_str}': {e}")
             return None
 
-    async def _send_reminder(self, event: dict, hours_before: int):
+    async def _send_reminder(self, event: dict, hours_before: float):
         """Send reminder message to media group chat."""
         try:
             if not config.MEDIA_GROUP_CHAT_ID:
                 print("❌ MEDIA_GROUP_CHAT_ID not set")
                 return
 
-            time_desc = f"{hours_before} soat" if hours_before < 24 else f"{hours_before // 24} kun"
+            # Format time description in Uzbek based on the time unit
+            if hours_before >= 24:
+                # Display in days
+                days = int(hours_before // 24)
+                time_desc = f"{days} kun"
+            elif hours_before >= 1:
+                # Display in hours
+                hours = int(hours_before)
+                time_desc = f"{hours} soat"
+            else:
+                # Display in minutes for sub-hour reminders
+                minutes = int(hours_before * 60)
+                time_desc = f"{minutes} daqiqa"
 
             message = (
                 f"🔔 <b>Tadbir eslatmasi!</b>\n\n"
