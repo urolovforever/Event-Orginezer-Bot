@@ -201,8 +201,18 @@ class Database:
                 rows = await cursor.fetchall()
                 return [dict(row) for row in rows]
 
-    async def get_events_by_user(self, telegram_id: int) -> List[Dict[str, Any]]:
-        """Get all events created by a specific user."""
+    async def get_events_by_user(self, telegram_id: int, upcoming_only: bool = True) -> List[Dict[str, Any]]:
+        """
+        Get events created by a specific user.
+
+        Args:
+            telegram_id: User's Telegram ID
+            upcoming_only: If True, only return upcoming events (future events with datetime > now)
+                          If False, return all events regardless of date
+
+        Returns:
+            List of event dictionaries
+        """
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
@@ -214,7 +224,78 @@ class Database:
                 (telegram_id,)
             ) as cursor:
                 rows = await cursor.fetchall()
-                return [dict(row) for row in rows]
+                events = [dict(row) for row in rows]
+
+                # Filter upcoming events if requested
+                if upcoming_only:
+                    import pytz
+                    local_tz = pytz.timezone(config.TIMEZONE)
+                    now = datetime.now(local_tz)
+
+                    upcoming_events = []
+                    for event in events:
+                        try:
+                            # Parse event datetime
+                            day, month, year = map(int, event['date'].split('.'))
+                            hour, minute = map(int, event['time'].split(':'))
+                            event_datetime = local_tz.localize(datetime(year, month, day, hour, minute))
+
+                            # Include only if event time > now
+                            if event_datetime > now:
+                                upcoming_events.append(event)
+                        except Exception as e:
+                            print(f"Error parsing event datetime: {e}")
+                            continue
+
+                    return upcoming_events
+
+                return events
+
+    async def get_events_by_date_range(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+        """
+        Get events within a date range (inclusive).
+
+        Args:
+            start_date: Start date in DD.MM.YYYY format
+            end_date: End date in DD.MM.YYYY format
+
+        Returns:
+            List of event dictionaries sorted by date and time
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                '''SELECT e.*, u.full_name as creator_name, u.department as creator_department, u.phone as creator_phone
+                   FROM events e
+                   JOIN users u ON e.created_by_user_id = u.telegram_id
+                   WHERE e.is_cancelled = 0
+                   ORDER BY e.date, e.time'''
+            ) as cursor:
+                rows = await cursor.fetchall()
+                events = [dict(row) for row in rows]
+
+                # Filter by date range
+                try:
+                    # Parse start and end dates
+                    start_day, start_month, start_year = map(int, start_date.split('.'))
+                    start_dt = datetime(start_year, start_month, start_day)
+
+                    end_day, end_month, end_year = map(int, end_date.split('.'))
+                    end_dt = datetime(end_year, end_month, end_day, 23, 59, 59)
+
+                    filtered_events = []
+                    for event in events:
+                        day, month, year = map(int, event['date'].split('.'))
+                        event_dt = datetime(year, month, day)
+
+                        # Include if within range
+                        if start_dt <= event_dt <= end_dt:
+                            filtered_events.append(event)
+
+                    return filtered_events
+                except Exception as e:
+                    print(f"Error filtering events by date range: {e}")
+                    return []
 
     async def update_event(self, event_id: int, **kwargs) -> bool:
         """Update event fields and clear old reminders."""
