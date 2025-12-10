@@ -128,13 +128,17 @@ def get_departments_management_keyboard() -> InlineKeyboardMarkup:
     return keyboard.as_markup()
 
 
-def get_departments_list_keyboard(departments: List[str]) -> InlineKeyboardMarkup:
-    """Get keyboard with departments list for deletion."""
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from typing import List, Dict
+
+def get_departments_list_keyboard(departments=None) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardBuilder()
-
-    for dept in departments:
-        keyboard.button(text=f"❌ {dept}", callback_data=f"dept_delete_{dept}")
-
-    keyboard.button(text="🔙 Orqaga", callback_data="dept_manage")
+    dept_list = departments if departments else config.DEPARTMENTS
+    for idx, name in enumerate(dept_list, start=1):
+        keyboard.button(text=f"❌ {name}", callback_data=f"dept_delete_{idx}")
+    keyboard.button(text="🔙 Back", callback_data="dept_manage")
     keyboard.adjust(1)
     return keyboard.as_markup()
+
+

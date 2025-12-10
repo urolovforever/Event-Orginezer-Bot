@@ -3,6 +3,8 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove
+
+from config import ALLOWED_USER_IDS
 from database import db
 from states import RegistrationStates
 import keyboards as kb
@@ -12,8 +14,13 @@ router = Router()
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
-    """Handle /start command."""
+    """Handle /start command with allowed users check."""
     user_id = message.from_user.id
+
+    # Check if user is allowed
+    if user_id not in ALLOWED_USER_IDS:
+        await message.answer("❌ Sizda botni ishlatish uchun ruxsat yo'q!")
+        return
 
     # Check if user is already registered
     if await db.is_user_registered(user_id):
@@ -29,7 +36,7 @@ async def cmd_start(message: Message, state: FSMContext):
         # Start registration process
         await message.answer(
             "Assalomu alaykum! 👋\n\n"
-            "Men Tadbirlar boshqaruvi botiман. Sizni ro'yxatdan o'tkazish uchun "
+            "Men Tadbirlar boshqaruvi botiman. Sizni ro'yxatdan o'tkazish uchun "
             "quyidagi ma'lumotlarni taqdim eting.\n\n"
             "Iltimos, ismingiz va familiyangizni kiriting:",
             reply_markup=ReplyKeyboardRemove()
