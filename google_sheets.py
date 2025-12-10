@@ -14,7 +14,8 @@ class GoogleSheetsManager:
         """Initialize Google Sheets client."""
         self.client = None
         self.spreadsheet = None
-        self.worksheet = None
+        self.worksheet = None  # Main sheet for upcoming events
+        self.past_worksheet = None  # Sheet for past events
         self._initialized = False
 
     def initialize(self):
@@ -37,7 +38,8 @@ class GoogleSheetsManager:
             # Open the spreadsheet
             if config.GOOGLE_SPREADSHEET_ID:
                 self.spreadsheet = self.client.open_by_key(config.GOOGLE_SPREADSHEET_ID)
-                # Get or create the main worksheet
+
+                # Get or create the main worksheet for upcoming events
                 try:
                     self.worksheet = self.spreadsheet.worksheet("Tadbirlar")
                 except gspread.exceptions.WorksheetNotFound:
@@ -46,10 +48,21 @@ class GoogleSheetsManager:
                         rows=1000,
                         cols=10
                     )
-                    self._setup_headers()
+                    self._setup_headers(self.worksheet)
+
+                # Get or create the worksheet for past events
+                try:
+                    self.past_worksheet = self.spreadsheet.worksheet("Otgan tadbirlar")
+                except gspread.exceptions.WorksheetNotFound:
+                    self.past_worksheet = self.spreadsheet.add_worksheet(
+                        title="Otgan tadbirlar",
+                        rows=1000,
+                        cols=10
+                    )
+                    self._setup_headers(self.past_worksheet)
 
                 self._initialized = True
-                print("Google Sheets initialized successfully")
+                print("Google Sheets initialized successfully (Tadbirlar + Otgan tadbirlar)")
             else:
                 print("Warning: GOOGLE_SPREADSHEET_ID not configured")
 
@@ -58,11 +71,8 @@ class GoogleSheetsManager:
         except Exception as e:
             print(f"Error initializing Google Sheets: {e}")
 
-    def _setup_headers(self):
+    def _setup_headers(self, worksheet):
         """Setup header row in the worksheet."""
-        if not self._initialized:
-            return
-
         headers = [
             "ID",
             "Tadbir nomi",
@@ -77,9 +87,9 @@ class GoogleSheetsManager:
         ]
 
         try:
-            self.worksheet.update('A1:J1', [headers])
+            worksheet.update('A1:J1', [headers])
             # Format header row
-            self.worksheet.format('A1:J1', {
+            worksheet.format('A1:J1', {
                 'textFormat': {'bold': True},
                 'backgroundColor': {'red': 0.9, 'green': 0.9, 'blue': 0.9}
             })
@@ -299,12 +309,12 @@ class GoogleSheetsManager:
 
     def mark_past_events(self):
         """
-        Mark all past events with gray background.
+        Move all past events from "Tadbirlar" to "Otgan tadbirlar" sheet.
 
-        Color logic:
-        - Cancelled events (with [BEKOR QILINDI] prefix): RED background - never change
-        - Past events (datetime < now): GRAY background
-        - Future events (datetime >= now): WHITE background (no color)
+        Logic:
+        - Past events (datetime < now): Move to "Otgan tadbirlar" with gray background
+        - Cancelled past events: Move to "Otgan tadbirlar" with red background
+        - Future events (datetime >= now): Keep in "Tadbirlar" (including cancelled ones)
         """
         if not self._initialized:
             return False
@@ -313,16 +323,22 @@ class GoogleSheetsManager:
             local_tz = pytz.timezone(config.TIMEZONE)
             now = datetime.now(local_tz)
 
+            # Get all events from "Tadbirlar" sheet
             all_values = self.worksheet.get_all_values()
             if len(all_values) <= 1:  # Only header or empty
+                print("No events to process in Tadbirlar sheet")
                 return True
 
+            # Track rows to delete (in reverse order to avoid index shifting)
+            rows_to_delete = []
+
+            # Process each row to find past events
             for idx, row in enumerate(all_values[1:], start=2):  # Start from row 2
                 if len(row) < 4:
                     continue
 
                 try:
-                    # Get event title and date/time
+                    # Get event data
                     row_title = row[1] if len(row) > 1 else ""  # Tadbir nomi column
                     row_date = row[2]  # Sana column
                     row_time = row[3]  # Vaqt column
@@ -330,38 +346,67 @@ class GoogleSheetsManager:
                     if not row_date or not row_time:
                         continue
 
-                    # Skip cancelled events - they should stay RED
-                    if row_title.startswith("[BEKOR QILINDI]"):
-                        print(f"Skipping cancelled event at row {idx} (keeping red background)")
-                        continue
-
                     # Parse row date/time
                     r_day, r_month, r_year = map(int, row_date.split('.'))
                     r_hour, r_minute = map(int, row_time.split(':'))
                     row_datetime = local_tz.localize(datetime(r_year, r_month, r_day, r_hour, r_minute))
 
-                    # Mark as past if datetime < now (GRAY background)
+                    # Check if event is in the past
                     if row_datetime < now:
-                        self.worksheet.format(f'A{idx}:J{idx}', {
-                            'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
-                        })
-                        print(f"Marked row {idx} as past event (gray background)")
-                    # If event is in future, remove any background color (WHITE)
+                        # Add entire row to "Otgan tadbirlar" sheet
+                        self.past_worksheet.append_row(row)
+
+                        # Get the row number of newly added row in past sheet
+                        past_all_values = self.past_worksheet.get_all_values()
+                        new_past_row_num = len(past_all_values)
+
+                        # Apply appropriate background color
+                        if row_title.startswith("[BEKOR QILINDI]"):
+                            # Cancelled past event - RED background
+                            self.past_worksheet.format(f'A{new_past_row_num}:J{new_past_row_num}', {
+                                'backgroundColor': {'red': 1.0, 'green': 0.8, 'blue': 0.8}
+                            })
+                            print(f"✅ Moved cancelled past event from row {idx} to Otgan tadbirlar (red)")
+                        else:
+                            # Regular past event - GRAY background
+                            self.past_worksheet.format(f'A{new_past_row_num}:J{new_past_row_num}', {
+                                'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
+                            })
+                            print(f"✅ Moved past event '{row_title[:30]}...' from row {idx} to Otgan tadbirlar (gray)")
+
+                        # Mark row for deletion
+                        rows_to_delete.append(idx)
+
                     else:
-                        self.worksheet.format(f'A{idx}:J{idx}', {
-                            'backgroundColor': {'red': 1.0, 'green': 1.0, 'blue': 1.0}
-                        })
-                        print(f"Marked row {idx} as future event (white background)")
+                        # Future event - ensure white background (even for cancelled ones)
+                        if row_title.startswith("[BEKOR QILINDI]"):
+                            # Keep cancelled future events with RED background
+                            self.worksheet.format(f'A{idx}:J{idx}', {
+                                'backgroundColor': {'red': 1.0, 'green': 0.8, 'blue': 0.8}
+                            })
+                        else:
+                            # Regular future events - WHITE background
+                            self.worksheet.format(f'A{idx}:J{idx}', {
+                                'backgroundColor': {'red': 1.0, 'green': 1.0, 'blue': 1.0}
+                            })
 
                 except Exception as e:
-                    print(f"Error processing row {idx}: {e}")
+                    print(f"❌ Error processing row {idx}: {e}")
                     continue
 
-            print("Finished marking past events")
+            # Delete moved rows from "Tadbirlar" sheet (in reverse order to maintain indices)
+            if rows_to_delete:
+                print(f"🗑️ Deleting {len(rows_to_delete)} moved events from Tadbirlar sheet...")
+                for row_num in reversed(rows_to_delete):
+                    self.worksheet.delete_rows(row_num)
+                print(f"✅ Successfully moved {len(rows_to_delete)} past events to Otgan tadbirlar")
+            else:
+                print("ℹ️ No past events found to move")
+
             return True
 
         except Exception as e:
-            print(f"Error marking past events: {e}")
+            print(f"❌ Error in mark_past_events: {e}")
             import traceback
             traceback.print_exc()
             return False
