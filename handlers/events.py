@@ -321,25 +321,28 @@ async def show_today_events(message: Message):
 @router.message(F.text == "📅 Haftalik jadval")
 async def show_week_events(message: Message):
     """
-    Show events from the past 7 days until today.
+    Show events from today until the end of this week (Sunday).
 
-    Filter: event_date in [today - 7 days ... today]
+    Filter: event_date in [today ... end of week (Sunday)]
     """
     today = datetime.now()
-    week_ago = today - timedelta(days=7)
+
+    # Calculate days until Sunday (0=Monday, 6=Sunday)
+    days_until_sunday = 6 - today.weekday()
+    end_of_week = today + timedelta(days=days_until_sunday)
 
     # Format dates for date range query
-    start_date = week_ago.strftime('%d.%m.%Y')
-    end_date = today.strftime('%d.%m.%Y')
+    start_date = today.strftime('%d.%m.%Y')
+    end_date = end_of_week.strftime('%d.%m.%Y')
 
-    # Get events in the past 7 days
+    # Get events from today until end of week
     events = await db.get_events_by_date_range(start_date, end_date)
 
     if not events:
-        await message.answer("So'nggi 7 kunda tadbirlar yo'q")
+        await message.answer("Ushbu haftada tadbirlar yo'q")
         return
 
-    text = "<b>📅 Haftalik jadval (so'nggi 7 kun):</b>\n\n"
+    text = "<b>📅 Haftalik jadval (bugundan yakshanba oxirigacha):</b>\n\n"
     for event in events:
         text += format_event_text(event) + "\n\n"
 
@@ -349,50 +352,39 @@ async def show_week_events(message: Message):
 @router.message(F.text == "📊 Bir oylik jadval")
 async def show_monthly_events(message: Message):
     """
-    Show events from the past 30 days until today.
+    Show events from today until the end of the current month.
 
-    Filter: event_date in [today - 30 days ... today]
+    Filter: event_date in [today ... end of current month]
     """
     today = datetime.now()
-    month_ago = today - timedelta(days=30)
+
+    # Calculate last day of current month
+    if today.month == 12:
+        # December - end is Dec 31
+        end_of_month = datetime(today.year, 12, 31)
+    else:
+        # Get first day of next month, then subtract 1 day
+        first_of_next_month = datetime(today.year, today.month + 1, 1)
+        end_of_month = first_of_next_month - timedelta(days=1)
 
     # Format dates for date range query
-    start_date = month_ago.strftime('%d.%m.%Y')
-    end_date = today.strftime('%d.%m.%Y')
+    start_date = today.strftime('%d.%m.%Y')
+    end_date = end_of_month.strftime('%d.%m.%Y')
 
-    # Get events in the past 30 days
+    # Get events from today until end of month
     events = await db.get_events_by_date_range(start_date, end_date)
 
     if not events:
-        await message.answer("So'nggi 30 kunda tadbirlar yo'q")
+        await message.answer("Ushbu oyda tadbirlar yo'q")
         return
 
-    text = "<b>📊 Bir oylik jadval (so'nggi 30 kun):</b>\n\n"
+    text = "<b>📊 Oylik jadval (bugundan oy oxirigacha):</b>\n\n"
     for event in events:
         text += format_event_text(event) + "\n\n"
 
     # Show count if many events
     if len(events) > 20:
         text += f"\n<i>Jami: {len(events)} ta tadbir</i>"
-
-    await message.answer(text, parse_mode="HTML")
-
-
-@router.message(F.text == "📋 Barcha tadbirlar")
-async def show_all_events(message: Message):
-    """Show all upcoming events."""
-    events = await db.get_upcoming_events(limit=20)
-
-    if not events:
-        await message.answer("Hozircha tadbirlar yo'q")
-        return
-
-    text = "<b>📋 Barcha tadbirlar:</b>\n\n"
-    for event in events:
-        text += format_event_text(event) + "\n\n"
-
-    if len(events) == 20:
-        text += "\n<i>... va boshqalar</i>"
 
     await message.answer(text, parse_mode="HTML")
 
