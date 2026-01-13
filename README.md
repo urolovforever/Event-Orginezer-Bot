@@ -1,219 +1,325 @@
-# Event Organizer Bot 🎯
+# Event Organizer Bot
 
-Bu bot universitet uchun tadbirlar boshqaruvi tizimi. Bot orqali tadbirlarni qo'shish, ko'rish, tahrirlash va bekor qilish mumkin. Shuningdek, media jamoasiga avtomatik eslatmalar yuboriladi.
+Universitet tadbirlari boshqaruvi uchun Telegram bot. Tadbirlarni qo'shish, tahrirlash, bekor qilish va avtomatik eslatmalar yuborish imkoniyatini beradi.
 
-## Xususiyatlar ✨
+## Texnologiyalar
 
-### 1️⃣ Foydalanuvchini ro'yxatdan o'tkazish
-- Birinchi kirishda avtomatik ro'yxatdan o'tish jarayoni
-- Ism-familiya, bo'lim va telefon raqamini to'plash
-- Ma'lumotlar bazaga va Google Sheets ga saqlanadi
+| Texnologiya | Versiya | Vazifasi |
+|-------------|---------|----------|
+| Python | 3.8+ | Asosiy dasturlash tili |
+| aiogram | 3.13.1 | Telegram Bot API framework |
+| SQLite | - | Ma'lumotlar bazasi |
+| aiosqlite | 0.20.0 | Asinxron SQLite driver |
+| gspread | 6.1.2 | Google Sheets API |
+| APScheduler | 3.10.4 | Avtomatik eslatmalar |
+| pytz | 2024.1 | Vaqt zonasi (Asia/Tashkent) |
 
-### 2️⃣ Tadbir qo'shish
-- Tadbir nomi, sana, vaqt, joy va izohni kiritish
-- Sana va vaqt validatsiyasi (DD.MM.YYYY va HH:MM formatida)
-- Tasdiqlash oldin ko'rinish
-- Avtomatik Google Sheets ga qo'shish
-- Media guruhiga darhol xabar yuborish
-
-### 3️⃣ Tadbirlar jadvali
-- Bugungi tadbirlar
-- Haftalik jadval
-- Barcha kelgusi tadbirlar
-
-### 4️⃣ Mening tadbirlarim
-- O'zingiz qo'shgan tadbirlarni ko'rish
-- Tadbirlarni tahrirlash
-- Tadbirlarni bekor qilish
-
-### 5️⃣ Admin panel
-- Statistika (bo'limlar bo'yicha tadbirlar soni)
-- Barcha foydalanuvchilarni ko'rish
-
-### 6️⃣ Avtomatik eslatmalar
-- Tadbirdan 24 soat oldin
-- Tadbirdan 3 soat oldin
-- Media guruhiga yuboriladi
-
-### 7️⃣ Google Sheets integratsiyasi
-- Barcha tadbirlar avtomatik Google Sheets ga yoziladi
-- Media jamoasi real-time ko'rib boradi
-- Tahrirlangan yoki bekor qilingan tadbirlar yangilanadi
-
-## O'rnatish 🚀
-
-### 1. Repository'ni klonlash
-
-```bash
-git clone https://github.com/your-username/Event-Organizer-Bot.git
-cd Event-Organizer-Bot
-```
-
-### 2. Virtual environment yaratish
-
-```bash
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# yoki
-venv\Scripts\activate  # Windows
-```
-
-### 3. Kerakli kutubxonalarni o'rnatish
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Environment o'zgaruvchilarini sozlash
-
-`.env.example` faylini `.env` ga nusxalang va quyidagi ma'lumotlarni to'ldiring:
-
-```env
-BOT_TOKEN=your_telegram_bot_token_here
-GOOGLE_SHEETS_CREDENTIALS_FILE=credentials.json
-GOOGLE_SPREADSHEET_ID=your_spreadsheet_id_here
-ADMIN_USER_IDS=123456789,987654321
-MEDIA_GROUP_CHAT_ID=-1001234567890
-DATABASE_PATH=database.db
-TIMEZONE=Asia/Tashkent
-```
-
-### 5. Google Sheets API sozlash
-
-1. [Google Cloud Console](https://console.cloud.google.com/) ga kiring
-2. Yangi loyiha yarating yoki mavjud loyihani tanlang
-3. "APIs & Services" > "Enable APIs and Services" ga o'ting
-4. "Google Sheets API" va "Google Drive API" ni yoqing
-5. "Credentials" > "Create Credentials" > "Service Account" ni tanlang
-6. Service account yarating va JSON kalit faylini yuklab oling
-7. JSON faylni `credentials.json` nomi bilan loyiha papkasiga joylashtiring
-8. Google Sheets faylini yarating
-9. Service account email manzilini (credentials.json ichidagi `client_email`) Google Sheets fayliga "Editor" huquqi bilan qo'shing
-10. Spreadsheet ID ni `.env` fayliga qo'shing (URL dan: `https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit`)
-
-### 6. Telegram bot yaratish
-
-1. [@BotFather](https://t.me/BotFather) ga murojaat qiling
-2. `/newbot` buyrug'ini yuboring
-3. Bot nomini va username'ini kiriting
-4. Olingan token'ni `.env` fayliga qo'shing
-
-### 7. Admin va Media guruh sozlash
-
-1. O'zingizning Telegram ID'ingizni oling ([@userinfobot](https://t.me/userinfobot) orqali)
-2. ID'ni `ADMIN_USER_IDS` ga qo'shing
-3. Media guruh yarating va botni qo'shing
-4. Guruh ID'sini oling va `MEDIA_GROUP_CHAT_ID` ga qo'shing
-
-**Guruh ID'sini olish:**
-```bash
-# Botni guruhga qo'shing va biror xabar yuboring
-# Keyin quyidagi URL'ni brauzerda oching:
-https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates
-# "chat":{"id":-1001234567890 ko'rinishidagi ID'ni oling
-```
-
-### 8. Botni ishga tushirish
-
-```bash
-python bot.py
-```
-
-## Loyiha tuzilishi 📁
+## Loyiha tuzilishi
 
 ```
 Event-Organizer-Bot/
-├── bot.py                    # Asosiy bot fayli
-├── config.py                 # Konfiguratsiya
-├── database.py               # Ma'lumotlar bazasi
-├── keyboards.py              # Keyboard layoutlar
-├── states.py                 # FSM state'lari
-├── google_sheets.py          # Google Sheets integratsiyasi
-├── scheduler.py              # Eslatmalar scheduleri
+├── bot.py                 # Asosiy fayl - botni ishga tushiradi
+├── config.py              # Barcha sozlamalar (.env dan o'qiydi)
+├── database.py            # SQLite bilan ishlash (users, events, reminders, departments)
+├── keyboards.py           # Telegram tugmalar
+├── states.py              # FSM holatlar (ro'yxatdan o'tish, tadbir qo'shish, tahrirlash)
+├── google_sheets.py       # Google Sheets integratsiyasi
+├── scheduler.py           # Eslatmalar scheduleri (1 daqiqada bir tekshiradi)
 ├── handlers/
 │   ├── __init__.py
-│   ├── start.py             # Ro'yxatdan o'tish
-│   ├── events.py            # Tadbirlar boshqaruvi
-│   └── admin.py             # Admin funksiyalari
-├── requirements.txt          # Python kutubxonalari
-├── .env.example             # Environment o'zgaruvchilari namunasi
-├── .env                     # Environment o'zgaruvchilari (gitignore)
-├── credentials.json.example # Google credentials namunasi
-├── credentials.json         # Google credentials (gitignore)
-├── database.db              # SQLite database (gitignore)
-└── README.md                # Bu fayl
+│   ├── start.py           # /start, ro'yxatdan o'tish
+│   ├── events.py          # Tadbir qo'shish, ko'rish, tahrirlash, bekor qilish
+│   └── admin.py           # Admin: statistika, bo'limlar boshqaruvi
+├── requirements.txt       # Python kutubxonalar ro'yxati
+├── .env                   # Environment o'zgaruvchilari (MAXFIY)
+├── credentials.json       # Google API kaliti (MAXFIY)
+└── database.db            # SQLite bazasi (avtomatik yaratiladi)
 ```
 
-## Foydalanish 📖
+## Bot funksiyalari
 
-### Foydalanuvchi uchun
+### Oddiy foydalanuvchilar uchun:
+- **Ro'yxatdan o'tish**: Ism, bo'lim, telefon raqami (faqat Telegram kontakt orqali)
+- **Tadbir qo'shish**: Nom, sana (DD.MM.YYYY), vaqt (HH:MM), joy, izoh
+- **Tadbirlar jadvali**: Bugungi, haftalik, oylik
+- **Mening tadbirlarim**: O'z tadbirlarini ko'rish, tahrirlash, bekor qilish
 
-1. Botni `/start` buyrug'i bilan boshlang
-2. Ro'yxatdan o'tish jarayonini yakunlang
-3. Asosiy menyudan kerakli bo'limni tanlang:
-   - ➕ Tadbir qo'shish
-   - 📅 Tadbirlar jadvali
-   - 📝 Mening tadbirlarim
+### Admin foydalanuvchilar uchun:
+- **Statistika**: Bo'limlar bo'yicha tadbirlar soni
+- **Bo'limlar boshqaruvi**: Yangi bo'lim qo'shish, o'chirish
 
-### Admin uchun
+### Avtomatik funksiyalar:
+- Yangi tadbir qo'shilganda media guruhga xabar
+- Tadbir tahrirlanganda media guruhga xabar
+- Tadbir bekor qilinganda media guruhga xabar
+- Eslatmalar: 24 soat, 3 soat, 1 soat, 30 daqiqa, 10 daqiqa oldin
+- Google Sheets ga avtomatik sinxronlash
+- O'tgan tadbirlarni "Otgan tadbirlar" varag'iga ko'chirish
 
-Admin foydalanuvchilar qo'shimcha funksiyalarga ega:
-- 📊 Statistika - bo'limlar bo'yicha tadbirlar soni
-- 👥 Barcha foydalanuvchilar
+## Deployment qo'llanmasi
 
-## Texnologiyalar 🛠
+### 1-qadam: Serverga ulanish
 
-- **Python 3.8+**
-- **aiogram 3.13** - Telegram Bot API uchun asinxron framework
-- **SQLite** - Mahalliy ma'lumotlar bazasi
-- **Google Sheets API** - Google Sheets integratsiyasi
-- **APScheduler** - Eslatmalar uchun scheduler
-- **pytz** - Vaqt zonalari
+```bash
+ssh user@server_ip
+```
 
-## Muammolarni hal qilish 🔧
+### 2-qadam: Kerakli dasturlarni o'rnatish
 
-### Bot ishlamayapti
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install python3 python3-pip python3-venv git -y
+```
 
-1. `.env` faylidagi barcha ma'lumotlar to'g'riligini tekshiring
-2. `BOT_TOKEN` to'g'ri va aktiv ekanligini tekshiring
-3. Virtual environment faollashtirilganligini tekshiring
-4. Log'larni tekshiring: botni ishga tushirganda terminal'da xatolar ko'rinadi
+### 3-qadam: Loyihani yuklab olish
+
+```bash
+cd /opt  # yoki boshqa joy
+git clone https://github.com/your-repo/Event-Organizer-Bot.git
+cd Event-Organizer-Bot
+```
+
+### 4-qadam: Virtual environment yaratish
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 5-qadam: Environment faylini sozlash
+
+`.env` faylini yarating:
+
+```bash
+nano .env
+```
+
+Quyidagi ma'lumotlarni kiriting:
+
+```env
+# Telegram Bot Token (@BotFather dan olinadi)
+BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ
+
+# Google Sheets
+GOOGLE_SHEETS_CREDENTIALS_FILE=credentials.json
+GOOGLE_SPREADSHEET_ID=1ABC...xyz
+
+# Admin foydalanuvchilar (Telegram ID, vergul bilan ajratilgan)
+ADMIN_USER_IDS=123456789,987654321
+
+# Media guruh ID (minus bilan boshlanadi)
+MEDIA_GROUP_CHAT_ID=-1001234567890
+
+# Database
+DATABASE_PATH=database.db
+
+# Vaqt zonasi
+TIMEZONE=Asia/Tashkent
+```
+
+### 6-qadam: Google Sheets API sozlash
+
+1. [Google Cloud Console](https://console.cloud.google.com/) ga kiring
+2. Yangi loyiha yarating
+3. "APIs & Services" > "Enable APIs" > "Google Sheets API" va "Google Drive API" ni yoqing
+4. "Credentials" > "Create Credentials" > "Service Account" yarating
+5. Service account uchun JSON kalit yarating va yuklab oling
+6. Faylni `credentials.json` nomi bilan loyiha papkasiga joylashtiring
+7. Google Sheets yarating va service account email'ini (credentials.json ichidagi `client_email`) "Editor" sifatida qo'shing
+8. Spreadsheet ID ni `.env` fayliga qo'shing
+
+### 7-qadam: Botni sinab ko'rish
+
+```bash
+source venv/bin/activate
+python bot.py
+```
+
+Agar xatosiz ishga tushsa, `Ctrl+C` bilan to'xtating.
+
+### 8-qadam: Systemd service yaratish (avtomatik ishga tushirish)
+
+Service faylini yarating:
+
+```bash
+sudo nano /etc/systemd/system/event-bot.service
+```
+
+Quyidagi matnni kiriting:
+
+```ini
+[Unit]
+Description=Event Organizer Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/Event-Organizer-Bot
+Environment=PATH=/opt/Event-Organizer-Bot/venv/bin
+ExecStart=/opt/Event-Organizer-Bot/venv/bin/python bot.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Serviceni yoqish:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable event-bot
+sudo systemctl start event-bot
+```
+
+### 9-qadam: Statusni tekshirish
+
+```bash
+# Service holati
+sudo systemctl status event-bot
+
+# Loglarni ko'rish
+sudo journalctl -u event-bot -f
+
+# So'nggi 100 qator log
+sudo journalctl -u event-bot -n 100
+```
+
+## Muhim buyruqlar
+
+```bash
+# Botni qayta ishga tushirish
+sudo systemctl restart event-bot
+
+# Botni to'xtatish
+sudo systemctl stop event-bot
+
+# Botni ishga tushirish
+sudo systemctl start event-bot
+
+# Loglarni real-time ko'rish
+sudo journalctl -u event-bot -f
+
+# Virtual environment faollashtirish
+cd /opt/Event-Organizer-Bot
+source venv/bin/activate
+
+# Kutubxonalarni yangilash
+pip install -r requirements.txt --upgrade
+```
+
+## Ma'lumotlar bazasi
+
+Bot SQLite ishlatadi. Jadvallar:
+
+| Jadval | Tavsif |
+|--------|--------|
+| `users` | Foydalanuvchilar (telegram_id, full_name, department, phone, is_admin) |
+| `events` | Tadbirlar (id, title, date, time, place, comment, created_by_user_id, is_cancelled) |
+| `reminders` | Yuborilgan eslatmalar (event_id, reminder_type, sent_at) |
+| `departments` | Bo'limlar ro'yxati (id, name, is_active) |
+
+Ma'lumotlar bazasini ko'rish:
+
+```bash
+sqlite3 database.db
+.tables
+SELECT * FROM users;
+SELECT * FROM events WHERE is_cancelled = 0;
+.quit
+```
+
+## Google Sheets tuzilishi
+
+Bot ikkita varaq yaratadi:
+
+**"Tadbirlar" varag'i** - Kelgusi tadbirlar:
+| ID | Tadbir nomi | Sana | Vaqt | Joy | Izoh | Bo'lim | Mas'ul | Telefon | Yaratilgan vaqt |
+
+**"Otgan tadbirlar" varag'i** - O'tgan tadbirlar (kulrang fon bilan)
+
+## Eslatmalar tizimi
+
+Scheduler har 1 daqiqada tekshiradi va quyidagi vaqtlarda eslatma yuboradi:
+- 24 soat oldin (1 kun)
+- 3 soat oldin
+- 1 soat oldin
+- 30 daqiqa oldin
+- 10 daqiqa oldin
+
+Har bir eslatma bir marta yuboriladi (`reminders` jadvalida saqlanadi).
+
+## Xavfsizlik
+
+- `.env` va `credentials.json` fayllarini hech qachon git'ga push qilmang
+- `ALLOWED_USER_IDS` ro'yxatida faqat ruxsat berilgan foydalanuvchilar bo'lsin
+- `ADMIN_USER_IDS` da faqat ishonchli adminlar bo'lsin
+- Telefon raqami faqat Telegram kontakt orqali qabul qilinadi (boshqa raqam yuborish mumkin emas)
+
+## Muammolarni hal qilish
+
+### Bot ishga tushmayapti
+
+```bash
+# Loglarni tekshiring
+sudo journalctl -u event-bot -n 50
+
+# .env faylini tekshiring
+cat .env
+
+# Token to'g'riligini tekshiring
+curl https://api.telegram.org/bot<TOKEN>/getMe
+```
 
 ### Google Sheets ishlamayapti
 
-1. `credentials.json` fayli loyiha papkasida ekanligini tekshiring
-2. Service account email'i Google Sheets fayliga qo'shilganligini tekshiring
-3. Google Sheets API va Google Drive API yoqilganligini tekshiring
-4. Spreadsheet ID to'g'ri ekanligini tekshiring
+```bash
+# credentials.json mavjudligini tekshiring
+ls -la credentials.json
+
+# Spreadsheet ID to'g'riligini tekshiring
+grep GOOGLE_SPREADSHEET_ID .env
+```
 
 ### Eslatmalar kelmayapti
 
-1. `MEDIA_GROUP_CHAT_ID` to'g'ri ekanligini tekshiring
-2. Bot guruhda admin yoki a'zo ekanligini tekshiring
-3. Scheduler ishlab turganligini terminal log'laridan tekshiring
+```bash
+# MEDIA_GROUP_CHAT_ID to'g'riligini tekshiring
+grep MEDIA_GROUP_CHAT_ID .env
 
-## Kelajakdagi rejalar 🎯
+# Botning guruhda a'zo ekanligini tekshiring
+# Bot guruhga qo'shilgan bo'lishi kerak
+```
 
-- [ ] Tadbirlarni tahrirlash funksiyasi
-- [ ] Fayllar (rasm, video) yuklash imkoniyati
-- [ ] Tadbirlar uchun ro'yxatga olish tizimi
-- [ ] Excel export funksiyasi
-- [ ] Multi-language support (O'zbek, Rus, Ingliz)
-- [ ] Web panel admin uchun
-- [ ] Mobil ilovalar (iOS/Android)
+### Database xatosi
 
-## Muallif ✍️
+```bash
+# Bazani zaxiralash
+cp database.db database.db.backup
 
-Bot **Claude Code** yordamida yaratildi.
+# Bazani qayta yaratish (barcha ma'lumotlar o'chadi!)
+rm database.db
+python bot.py  # Yangi baza yaratiladi
+```
 
-## Litsenziya 📄
+## Yangilash
 
-MIT License
+```bash
+cd /opt/Event-Organizer-Bot
+git pull origin main
+source venv/bin/activate
+pip install -r requirements.txt --upgrade
+sudo systemctl restart event-bot
+```
 
-## Yordam 🤝
+## Kontakt
 
-Agar savollaringiz bo'lsa, issue ochishingiz yoki pull request yuborishingiz mumkin.
+Muammolar yuzaga kelganda GitHub Issues orqali murojaat qiling.
 
 ---
 
-**Eslatma:** Bu bot universitet ichki ishlatilishi uchun yaratilgan. Ishlatishdan oldin barcha sozlamalarni to'g'ri amalga oshiring.
+**Diqqat**: Bot ishga tushirilgandan keyin scheduler avtomatik boshlanadi. Eslatmalar har daqiqada tekshiriladi va MEDIA_GROUP_CHAT_ID ga yuboriladi.
