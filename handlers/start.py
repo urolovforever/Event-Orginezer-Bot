@@ -78,8 +78,7 @@ async def process_department(message: Message, state: FSMContext):
     # Ask for phone number
     await message.answer(
         "Yaxshi! Endi telefon raqamingizni yuboring.\n\n"
-        "Siz quyidagi tugma orqali telefon raqamingizni yuborishingiz yoki "
-        "uni matn ko'rinishida kiritishingiz mumkin:",
+        "Quyidagi tugmani bosib, telefon raqamingizni yuboring:",
         reply_markup=kb.get_phone_keyboard()
     )
     await state.set_state(RegistrationStates.waiting_for_phone)
@@ -88,6 +87,15 @@ async def process_department(message: Message, state: FSMContext):
 @router.message(RegistrationStates.waiting_for_phone, F.contact)
 async def process_phone_contact(message: Message, state: FSMContext):
     """Process phone number from contact sharing."""
+    # Verify that the contact belongs to the sender (not someone else's contact)
+    if message.contact.user_id != message.from_user.id:
+        await message.answer(
+            "❌ Siz faqat o'zingizning telefon raqamingizni yuborishingiz mumkin.\n\n"
+            "Iltimos, quyidagi tugmani bosib, o'z telefon raqamingizni yuboring:",
+            reply_markup=kb.get_phone_keyboard()
+        )
+        return
+
     phone = message.contact.phone_number
 
     # Complete registration
@@ -96,18 +104,12 @@ async def process_phone_contact(message: Message, state: FSMContext):
 
 @router.message(RegistrationStates.waiting_for_phone)
 async def process_phone_text(message: Message, state: FSMContext):
-    """Process phone number from text input."""
-    phone = message.text.strip()
-
-    # Basic phone validation
-    if len(phone) < 9:
-        await message.answer(
-            "Telefon raqami juda qisqa. Iltimos, to'g'ri telefon raqamini kiriting:"
-        )
-        return
-
-    # Complete registration
-    await complete_registration(message, state, phone)
+    """Reject text input and ask user to use contact sharing button."""
+    await message.answer(
+        "❌ Telefon raqamini matn ko'rinishida kiritish mumkin emas.\n\n"
+        "Iltimos, quyidagi tugmani bosib, o'z telefon raqamingizni yuboring:",
+        reply_markup=kb.get_phone_keyboard()
+    )
 
 
 async def complete_registration(message: Message, state: FSMContext, phone: str):
