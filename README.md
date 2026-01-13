@@ -68,11 +68,6 @@ pip install -r requirements.txt
 
 `.env.example` faylini `.env` ga nusxalang va quyidagi ma'lumotlarni to'ldiring:
 
-```bash
-cp .env.example .env
-nano .env
-```
-
 ```env
 BOT_TOKEN=your_telegram_bot_token_here
 GOOGLE_SHEETS_CREDENTIALS_FILE=credentials.json
