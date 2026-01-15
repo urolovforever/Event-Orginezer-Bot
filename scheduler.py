@@ -86,8 +86,9 @@ class ReminderScheduler:
 
                 time_diff = (reminder_time - now).total_seconds()
 
-                # Send reminder if within next 60 seconds or already passed but not sent
-                if 0 <= time_diff < 60 or (-3600 < time_diff < 0):  # 1 hour catch-up window
+                # Send reminder if within 2-minute window around reminder time
+                # This prevents repeated sends while still allowing catch-up if bot was briefly offline
+                if -120 <= time_diff < 60:  # 2-minute catch-up window (was 1 hour)
                     already_sent = await db.is_reminder_sent(event['id'], reminder_type)
                     if not already_sent:
                         await self._send_reminder(event, hours_before)
