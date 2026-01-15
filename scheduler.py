@@ -30,7 +30,6 @@ class ReminderScheduler:
                 id='check_reminders',
                 replace_existing=True
             )
-            print("✅ Reminder check job added (every 1 minute)")
 
             # Job 2: Mark past events daily at 00:05 AM
             self.scheduler.add_job(
@@ -39,18 +38,15 @@ class ReminderScheduler:
                 id='mark_past_events',
                 replace_existing=True
             )
-            print("✅ Mark past events job added (daily at 00:05)")
 
             self.scheduler.start()
             self.running = True
-            print("🚀 Reminder scheduler started successfully")
 
     def stop(self):
         """Stop the scheduler."""
         if self.running:
             self.scheduler.shutdown()
             self.running = False
-            print("Reminder scheduler stopped")
 
     async def check_reminders(self):
         """Check upcoming events and send reminders if necessary."""
@@ -59,28 +55,21 @@ class ReminderScheduler:
             now = datetime.now(tz)
             events = await db.get_upcoming_events()
 
-            print(f"🔍 Checking reminders at {now.strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"📋 Found {len(events)} upcoming events")
-
             for event in events:
                 await self._check_event_reminders(event, now)
 
         except Exception as e:
             print(f"❌ Error checking reminders: {e}")
-            import traceback
-            traceback.print_exc()
 
     async def _check_event_reminders(self, event: dict, now: datetime):
         """Check and send reminders for a specific event."""
         try:
             event_datetime = self._parse_event_datetime(event['date'], event['time'])
             if not event_datetime:
-                print(f"⚠️ Could not parse datetime for event {event.get('id', 'unknown')}")
                 return
 
             # Skip past events
             if now >= event_datetime:
-                print(f"  ⏭️ Event '{event['title']}' already started, skipping reminders")
                 return
 
             for hours_before in config.REMINDER_HOURS:
@@ -106,8 +95,6 @@ class ReminderScheduler:
 
         except Exception as e:
             print(f"❌ Error in _check_event_reminders: {e}")
-            import traceback
-            traceback.print_exc()
 
     def _parse_event_datetime(self, date_str: str, time_str: str) -> Optional[datetime]:
         """Parse event date and time into a timezone-aware datetime object."""
@@ -119,15 +106,13 @@ class ReminderScheduler:
             dt = datetime(year, month, day, hour, minute)
             return tz.localize(dt)
 
-        except Exception as e:
-            print(f"❌ Error parsing datetime '{date_str} {time_str}': {e}")
+        except Exception:
             return None
 
     async def _send_reminder(self, event: dict, hours_before: float):
         """Send reminder message to media group chat."""
         try:
             if not config.MEDIA_GROUP_CHAT_ID:
-                print("❌ MEDIA_GROUP_CHAT_ID not set")
                 return
 
             # Format time description in Uzbek based on the time unit
@@ -162,18 +147,14 @@ class ReminderScheduler:
                 text=message,
                 parse_mode="HTML"
             )
-            print(f"✅ Reminder sent for event '{event['title']}' ({hours_before}h before)")
 
         except Exception as e:
             print(f"❌ Error sending reminder: {e}")
-            import traceback
-            traceback.print_exc()
 
     async def send_immediate_notification(self, event: dict):
         """Send immediate notification about new event to media group."""
         try:
             if not config.MEDIA_GROUP_CHAT_ID:
-                print("❌ MEDIA_GROUP_CHAT_ID not set")
                 return
 
             message = (
@@ -193,23 +174,14 @@ class ReminderScheduler:
                 text=message,
                 parse_mode="HTML"
             )
-            print(f"✅ Immediate notification sent for event '{event['title']}'")
 
         except Exception as e:
             print(f"❌ Error sending immediate notification: {e}")
-            import traceback
-            traceback.print_exc()
 
     async def mark_past_events_job(self):
         """Daily job to mark past events in Google Sheets with gray background."""
         try:
-            print("🔍 Running daily task: marking past events in Google Sheets")
             if sheets_manager.is_connected():
                 sheets_manager.mark_past_events()
-                print("✅ Past events marked successfully")
-            else:
-                print("⚠️ Google Sheets not connected, skipping mark past events")
         except Exception as e:
             print(f"❌ Error in mark_past_events_job: {e}")
-            import traceback
-            traceback.print_exc()

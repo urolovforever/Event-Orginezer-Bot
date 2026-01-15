@@ -128,7 +128,11 @@ class Database:
         return user is not None
 
     async def is_admin(self, telegram_id: int) -> bool:
-        """Check if user is admin."""
+        """Check if user is admin (checks both config and database)."""
+        # First check config.ADMIN_USER_IDS (priority)
+        if telegram_id in config.ADMIN_USER_IDS:
+            return True
+        # Then check database
         user = await self.get_user(telegram_id)
         return user and user['is_admin'] == 1
 
