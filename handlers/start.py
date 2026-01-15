@@ -56,8 +56,8 @@ async def process_full_name(message: Message, state: FSMContext):
     # Save full name to state
     await state.update_data(full_name=full_name)
 
-    # Get departments from database
-    departments = await db.get_all_departments()
+    # Get department names from database
+    departments = await db.get_all_department_names()
 
     # Ask for department
     await message.answer(
