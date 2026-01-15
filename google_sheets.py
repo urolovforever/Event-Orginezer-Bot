@@ -62,14 +62,13 @@ class GoogleSheetsManager:
                     self._setup_headers(self.past_worksheet)
 
                 self._initialized = True
-                print("Google Sheets initialized successfully (Tadbirlar + Otgan tadbirlar)")
             else:
-                print("Warning: GOOGLE_SPREADSHEET_ID not configured")
+                pass  # GOOGLE_SPREADSHEET_ID not configured
 
         except FileNotFoundError:
-            print(f"Warning: Credentials file {config.GOOGLE_SHEETS_CREDENTIALS_FILE} not found")
+            pass  # Credentials file not found
         except Exception as e:
-            print(f"Error initializing Google Sheets: {e}")
+            print(f"❌ Error initializing Google Sheets: {e}")
 
     def _setup_headers(self, worksheet):
         """Setup header row in the worksheet."""
@@ -94,7 +93,7 @@ class GoogleSheetsManager:
                 'backgroundColor': {'red': 0.9, 'green': 0.9, 'blue': 0.9}
             })
         except Exception as e:
-            print(f"Error setting up headers: {e}")
+            print(f"❌ Error setting up headers: {e}")
 
     def add_event(self, event: Dict[str, Any]) -> bool:
         """
@@ -143,8 +142,7 @@ class GoogleSheetsManager:
                 now = datetime.now(local_tz)
                 is_past = event_datetime < now
 
-            except Exception as e:
-                print(f"Error parsing event datetime: {e}")
+            except Exception:
                 # If parsing fails, append to the end without formatting
                 self.worksheet.append_row(row_data)
                 return True
@@ -161,9 +159,6 @@ class GoogleSheetsManager:
                     self.worksheet.format(f'A{new_row_num}:J{new_row_num}', {
                         'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
                     })
-                    print(f"Added first event (past) to row {new_row_num} with gray background")
-                else:
-                    print(f"Added first event (future) to row {new_row_num}")
                 return True
 
             # Case 2: Event is in the past - add to the very bottom with gray background
@@ -176,7 +171,6 @@ class GoogleSheetsManager:
                 self.worksheet.format(f'A{new_row_num}:J{new_row_num}', {
                     'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
                 })
-                print(f"Added past event to bottom row {new_row_num} with gray background")
                 return True
 
             # Case 3: Event is in the future - find correct sorted position
@@ -207,30 +201,24 @@ class GoogleSheetsManager:
                         if event_datetime < row_datetime:
                             insert_position = idx
                             break
-                except Exception as e:
-                    print(f"Error parsing row {idx}: {e}")
+                except Exception:
                     continue
 
             # Insert at the correct position
             if insert_position:
                 # Insert before the found future event
                 self.worksheet.insert_row(row_data, insert_position)
-                print(f"Inserted future event at row {insert_position}")
             elif last_future_event_row:
                 # Insert after the last future event (before past events section)
                 self.worksheet.insert_row(row_data, last_future_event_row + 1)
-                print(f"Inserted future event after last future event at row {last_future_event_row + 1}")
             else:
                 # No future events found, insert at row 2 (becomes first future event)
                 self.worksheet.insert_row(row_data, 2)
-                print(f"Inserted as first future event at row 2")
 
             return True
 
         except Exception as e:
-            print(f"Error adding event to Google Sheets: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"❌ Error adding event to Google Sheets: {e}")
             return False
 
     def update_event(self, event_id: int, event: Dict[str, Any]) -> bool:
@@ -250,7 +238,7 @@ class GoogleSheetsManager:
             return self.add_event(event)
 
         except Exception as e:
-            print(f"Error updating event in Google Sheets: {e}")
+            print(f"❌ Error updating event in Google Sheets: {e}")
             return False
 
     def delete_event(self, event_id: int) -> bool:
@@ -268,7 +256,7 @@ class GoogleSheetsManager:
             return True
 
         except Exception as e:
-            print(f"Error deleting event from Google Sheets: {e}")
+            print(f"❌ Error deleting event from Google Sheets: {e}")
             return False
 
     def mark_event_cancelled(self, event_id: int) -> bool:
@@ -300,7 +288,7 @@ class GoogleSheetsManager:
             return True
 
         except Exception as e:
-            print(f"Error marking event as cancelled in Google Sheets: {e}")
+            print(f"❌ Error marking event as cancelled in Google Sheets: {e}")
             return False
 
     def is_connected(self) -> bool:
@@ -326,7 +314,6 @@ class GoogleSheetsManager:
             # Get all events from "Tadbirlar" sheet
             all_values = self.worksheet.get_all_values()
             if len(all_values) <= 1:  # Only header or empty
-                print("No events to process in Tadbirlar sheet")
                 return True
 
             # Track rows to delete (in reverse order to avoid index shifting)
@@ -366,13 +353,11 @@ class GoogleSheetsManager:
                             self.past_worksheet.format(f'A{new_past_row_num}:J{new_past_row_num}', {
                                 'backgroundColor': {'red': 1.0, 'green': 0.8, 'blue': 0.8}
                             })
-                            print(f"✅ Moved cancelled past event from row {idx} to Otgan tadbirlar (red)")
                         else:
                             # Regular past event - GRAY background
                             self.past_worksheet.format(f'A{new_past_row_num}:J{new_past_row_num}', {
                                 'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
                             })
-                            print(f"✅ Moved past event '{row_title[:30]}...' from row {idx} to Otgan tadbirlar (gray)")
 
                         # Mark row for deletion
                         rows_to_delete.append(idx)
@@ -396,19 +381,13 @@ class GoogleSheetsManager:
 
             # Delete moved rows from "Tadbirlar" sheet (in reverse order to maintain indices)
             if rows_to_delete:
-                print(f"🗑️ Deleting {len(rows_to_delete)} moved events from Tadbirlar sheet...")
                 for row_num in reversed(rows_to_delete):
                     self.worksheet.delete_rows(row_num)
-                print(f"✅ Successfully moved {len(rows_to_delete)} past events to Otgan tadbirlar")
-            else:
-                print("ℹ️ No past events found to move")
 
             return True
 
         except Exception as e:
             print(f"❌ Error in mark_past_events: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
 
