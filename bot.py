@@ -37,7 +37,7 @@ handler.setFormatter(TashkentFormatter(
     datefmt='%Y-%m-%d %H:%M:%S'
 ))
 logging.basicConfig(
-    level=logging.ERROR,
+    level=logging.INFO,
     handlers=[handler]
 )
 logger = logging.getLogger(__name__)

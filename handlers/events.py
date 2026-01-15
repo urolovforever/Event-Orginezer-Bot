@@ -220,15 +220,34 @@ async def confirm_add_event(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     user_id = callback.from_user.id
 
+    # Check if all required data exists
+    required_fields = ['title', 'date', 'time', 'place', 'comment']
+    missing_fields = [f for f in required_fields if f not in data]
+    if missing_fields:
+        print(f"❌ Missing FSM data fields: {missing_fields}")
+        await callback.message.edit_text(
+            "❌ Ma'lumotlar topilmadi. Iltimos, qaytadan boshlang.",
+            reply_markup=None
+        )
+        await state.clear()
+        await callback.answer()
+        return
+
     # Add event to database
-    event_id = await db.add_event(
-        title=data['title'],
-        date=data['date'],
-        time=data['time'],
-        place=data['place'],
-        comment=data['comment'],
-        created_by_user_id=user_id
-    )
+    try:
+        event_id = await db.add_event(
+            title=data['title'],
+            date=data['date'],
+            time=data['time'],
+            place=data['place'],
+            comment=data['comment'],
+            created_by_user_id=user_id
+        )
+    except Exception as e:
+        print(f"❌ Exception in add_event: {e}")
+        import traceback
+        traceback.print_exc()
+        event_id = None
 
     if event_id:
         # Get full event data with user info
@@ -260,9 +279,15 @@ async def confirm_add_event(callback: CallbackQuery, state: FSMContext):
             reply_markup=kb.get_main_menu_keyboard(is_admin)
         )
     else:
+        print(f"❌ Failed to add event for user_id={user_id}, data={data}")
+        is_admin = await db.is_admin(user_id)
         await callback.message.edit_text(
             "❌ Tadbir qo'shishda xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.",
             reply_markup=None
+        )
+        await callback.message.answer(
+            "Asosiy menyu:",
+            reply_markup=kb.get_main_menu_keyboard(is_admin)
         )
 
     await state.clear()

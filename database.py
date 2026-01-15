@@ -1,9 +1,12 @@
 """Database module for the Event Organizer Bot."""
 import aiosqlite
+import logging
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 import config
 import pytz
+
+logger = logging.getLogger(__name__)
 
 
 class Database:
@@ -145,16 +148,22 @@ class Database:
             local_tz = pytz.timezone(config.TIMEZONE)
             local_now = datetime.now(local_tz).strftime('%Y-%m-%d %H:%M:%S')
 
-            async with aiosqlite.connect(self.db_path) as db:
-                cursor = await db.execute(
+            logger.info(f"Adding event: title={title}, date={date}, time={time}, user_id={created_by_user_id}")
+
+            async with aiosqlite.connect(self.db_path) as conn:
+                cursor = await conn.execute(
                     '''INSERT INTO events (title, date, time, place, comment, created_by_user_id, created_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?)''',
                     (title, date, time, place, comment, created_by_user_id, local_now)
                 )
-                await db.commit()
-                return cursor.lastrowid
+                await conn.commit()
+                event_id = cursor.lastrowid
+                logger.info(f"Event added successfully with id={event_id}")
+                return event_id
         except Exception as e:
-            print(f"Error adding event: {e}")
+            logger.error(f"Error adding event: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     async def get_event(self, event_id: int) -> Optional[Dict[str, Any]]:
