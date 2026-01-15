@@ -451,15 +451,37 @@ class Database:
             return False
 
     async def add_department(self, name: str) -> bool:
-        """Add a new department."""
+        """Add a new department or reactivate if it was soft-deleted."""
         try:
             async with aiosqlite.connect(self.db_path) as db:
-                await db.execute(
-                    'INSERT INTO departments (name) VALUES (?)',
+                # Check if department already exists (active or inactive)
+                async with db.execute(
+                    'SELECT id, is_active FROM departments WHERE name = ?',
                     (name,)
-                )
-                await db.commit()
-                return True
+                ) as cursor:
+                    existing = await cursor.fetchone()
+
+                if existing:
+                    dept_id, is_active = existing
+                    if is_active == 1:
+                        # Already exists and active
+                        return False
+                    else:
+                        # Reactivate the soft-deleted department
+                        await db.execute(
+                            'UPDATE departments SET is_active = 1 WHERE id = ?',
+                            (dept_id,)
+                        )
+                        await db.commit()
+                        return True
+                else:
+                    # Insert new department
+                    await db.execute(
+                        'INSERT INTO departments (name) VALUES (?)',
+                        (name,)
+                    )
+                    await db.commit()
+                    return True
         except Exception as e:
             print(f"Error adding department: {e}")
             return False
