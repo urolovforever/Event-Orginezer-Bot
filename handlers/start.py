@@ -11,6 +11,9 @@ import keyboards as kb
 
 router = Router()
 
+# Filter: only respond to private messages (ignore groups)
+router.message.filter(F.chat.type == "private")
+
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):

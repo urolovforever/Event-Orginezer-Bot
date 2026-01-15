@@ -8,6 +8,9 @@ import keyboards as kb
 
 router = Router()
 
+# Filter: only respond to private messages (ignore groups)
+router.message.filter(F.chat.type == "private")
+
 
 @router.message(F.text == "📊 Statistika")
 async def show_statistics(message: Message):

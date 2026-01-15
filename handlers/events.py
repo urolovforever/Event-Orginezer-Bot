@@ -12,6 +12,9 @@ import re
 
 router = Router()
 
+# Filter: only respond to private messages (ignore groups)
+router.message.filter(F.chat.type == "private")
+
 # Global scheduler instance (set by bot.py at startup)
 reminder_scheduler = None
 
