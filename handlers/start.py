@@ -9,9 +9,20 @@ from database import db
 from states import RegistrationStates
 import keyboards as kb
 
-router = Router()
+# Group router - handles group messages (removes keyboards)
+group_router = Router()
 
-# Filter: only respond to private messages (ignore groups)
+@group_router.message(CommandStart(), F.chat.type.in_({"group", "supergroup"}))
+async def cmd_start_group(message: Message):
+    """Handle /start in groups - remove keyboard and redirect to private chat."""
+    await message.answer(
+        "👋 Men faqat shaxsiy chatda ishlayman.\n"
+        "Iltimos, menga shaxsiy xabar yozing.",
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+# Private chat router - main functionality
+router = Router()
 router.message.filter(F.chat.type == "private")
 
 

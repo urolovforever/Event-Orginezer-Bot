@@ -106,6 +106,7 @@ async def main():
     dp = Dispatcher(storage=MemoryStorage())
 
     # Register routers
+    dp.include_router(start.group_router)  # Group handler first (removes keyboards)
     dp.include_router(start.router)
     dp.include_router(events.router)
     dp.include_router(admin.router)
