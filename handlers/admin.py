@@ -105,7 +105,7 @@ async def process_new_department(message: Message, state: FSMContext):
 @router.callback_query(F.data == "dept_list")
 async def show_departments_list(callback: CallbackQuery):
     """Show list of departments for deletion."""
-    departments = await db.get_all_departments()
+    departments = await db.get_all_departments_with_ids()
 
     if not departments:
         await callback.answer("Bo'limlar ro'yxati bo'sh", show_alert=True)
@@ -128,6 +128,10 @@ async def delete_department(callback: CallbackQuery):
 
     # Get the full department info from DB
     dep = await db.get_department_by_id(dep_id)
+    if not dep:
+        await callback.answer("❌ Bo'lim topilmadi", show_alert=True)
+        return
+
     dep_name = dep["name"]
 
     # Delete department by ID
@@ -137,7 +141,7 @@ async def delete_department(callback: CallbackQuery):
         await callback.answer(f"✅ '{dep_name}' o'chirildi", show_alert=True)
 
         # Refresh list
-        departments = await db.get_all_departments()
+        departments = await db.get_all_departments_with_ids()
         if departments:
             await callback.message.edit_text(
                 "<b>Bo'limlar ro'yxati:</b>\n\n"

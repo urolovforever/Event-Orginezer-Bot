@@ -24,6 +24,16 @@ reminder_scheduler = None
 @router.message(F.text == "➕ Tadbir qo'shish")
 async def start_add_event(message: Message, state: FSMContext):
     """Start adding a new event."""
+    # Check if user is registered
+    user_id = message.from_user.id
+    if not await db.is_user_registered(user_id):
+        await message.answer(
+            "❌ Tadbir qo'shish uchun avval ro'yxatdan o'tishingiz kerak.\n"
+            "Iltimos, /start buyrug'ini yuboring.",
+            reply_markup=kb.get_main_menu_keyboard(False)
+        )
+        return
+
     await message.answer(
         "Tadbir qo'shish jarayonini boshlaymiz.\n\n"
         "Tadbir nomini kiriting:",
@@ -253,18 +263,20 @@ async def confirm_add_event(callback: CallbackQuery, state: FSMContext):
         # Get full event data with user info
         event = await db.get_event(event_id)
 
-        # Add to Google Sheets
-        if sheets_manager.is_connected():
-            sheets_manager.add_event(event)
+        if event:
+            # Add to Google Sheets
+            if sheets_manager.is_connected():
+                try:
+                    sheets_manager.add_event(event)
+                except Exception as e:
+                    print(f"❌ Error adding to Google Sheets: {e}")
 
-        # Send notification to media group
-        if reminder_scheduler:
-            try:
-                await reminder_scheduler.send_immediate_notification(event)
-            except Exception as e:
-                print(f"❌ Error sending notification: {e}")
-                import traceback
-                traceback.print_exc()
+            # Send notification to media group
+            if reminder_scheduler:
+                try:
+                    await reminder_scheduler.send_immediate_notification(event)
+                except Exception as e:
+                    print(f"❌ Error sending notification: {e}")
 
         is_admin = await db.is_admin(user_id)
 

@@ -1,12 +1,9 @@
 """Database module for the Event Organizer Bot."""
 import aiosqlite
-import logging
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 import config
 import pytz
-
-logger = logging.getLogger(__name__)
 
 
 class Database:
@@ -148,8 +145,6 @@ class Database:
             local_tz = pytz.timezone(config.TIMEZONE)
             local_now = datetime.now(local_tz).strftime('%Y-%m-%d %H:%M:%S')
 
-            logger.info(f"Adding event: title={title}, date={date}, time={time}, user_id={created_by_user_id}")
-
             async with aiosqlite.connect(self.db_path) as conn:
                 cursor = await conn.execute(
                     '''INSERT INTO events (title, date, time, place, comment, created_by_user_id, created_at)
@@ -157,11 +152,9 @@ class Database:
                     (title, date, time, place, comment, created_by_user_id, local_now)
                 )
                 await conn.commit()
-                event_id = cursor.lastrowid
-                logger.info(f"Event added successfully with id={event_id}")
-                return event_id
+                return cursor.lastrowid
         except Exception as e:
-            logger.error(f"Error adding event: {e}")
+            print(f"❌ Error adding event: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -417,7 +410,7 @@ class Database:
 
     # Department operations
     async def get_all_departments(self, active_only: bool = True) -> List[str]:
-        """Get all departments."""
+        """Get all department names."""
         async with aiosqlite.connect(self.db_path) as db:
             query = 'SELECT name FROM departments'
             if active_only:
@@ -427,6 +420,19 @@ class Database:
             async with db.execute(query) as cursor:
                 rows = await cursor.fetchall()
                 return [row[0] for row in rows]
+
+    async def get_all_departments_with_ids(self, active_only: bool = True) -> List[Dict[str, Any]]:
+        """Get all departments with their IDs."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            query = 'SELECT id, name FROM departments'
+            if active_only:
+                query += ' WHERE is_active = 1'
+            query += ' ORDER BY name'
+
+            async with db.execute(query) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
 
     async def add_department(self, name: str) -> bool:
         """Add a new department."""
@@ -454,6 +460,35 @@ class Database:
                 return True
         except Exception as e:
             print(f"Error deleting department: {e}")
+            return False
+
+    async def get_department_by_id(self, dept_id: int) -> Optional[Dict[str, Any]]:
+        """Get department by ID."""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                db.row_factory = aiosqlite.Row
+                async with db.execute(
+                    'SELECT * FROM departments WHERE id = ?',
+                    (dept_id,)
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    return dict(row) if row else None
+        except Exception as e:
+            print(f"Error getting department by ID: {e}")
+            return None
+
+    async def delete_department_by_id(self, dept_id: int) -> bool:
+        """Soft delete a department by ID."""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute(
+                    'UPDATE departments SET is_active = 0 WHERE id = ?',
+                    (dept_id,)
+                )
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error deleting department by ID: {e}")
             return False
 
 
