@@ -128,7 +128,11 @@ class Database:
         return user is not None
 
     async def is_admin(self, telegram_id: int) -> bool:
-        """Check if user is admin."""
+        """Check if user is admin (checks both database and config)."""
+        # First check config.ADMIN_USER_IDS (source of truth)
+        if telegram_id in config.ADMIN_USER_IDS:
+            return True
+        # Fallback to database check
         user = await self.get_user(telegram_id)
         return user and user['is_admin'] == 1
 
@@ -403,17 +407,48 @@ class Database:
                 return row[0] if row else 0
 
     # Department operations
-    async def get_all_departments(self, active_only: bool = True) -> List[str]:
-        """Get all departments."""
+    async def get_all_departments(self, active_only: bool = True) -> List[Dict[str, Any]]:
+        """Get all departments with id and name."""
         async with aiosqlite.connect(self.db_path) as db:
-            query = 'SELECT name FROM departments'
+            db.row_factory = aiosqlite.Row
+            query = 'SELECT id, name FROM departments'
             if active_only:
                 query += ' WHERE is_active = 1'
             query += ' ORDER BY name'
 
             async with db.execute(query) as cursor:
                 rows = await cursor.fetchall()
-                return [row[0] for row in rows]
+                return [{'id': row['id'], 'name': row['name']} for row in rows]
+
+    async def get_all_department_names(self, active_only: bool = True) -> List[str]:
+        """Get all department names only (for backward compatibility)."""
+        departments = await self.get_all_departments(active_only)
+        return [dept['name'] for dept in departments]
+
+    async def get_department_by_id(self, dept_id: int) -> Optional[Dict[str, Any]]:
+        """Get department by ID."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                'SELECT id, name, is_active FROM departments WHERE id = ?',
+                (dept_id,)
+            ) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    async def delete_department_by_id(self, dept_id: int) -> bool:
+        """Soft delete a department by ID."""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute(
+                    'UPDATE departments SET is_active = 0 WHERE id = ?',
+                    (dept_id,)
+                )
+                await db.commit()
+                return True
+        except Exception as e:
+            print(f"Error deleting department by id: {e}")
+            return False
 
     async def add_department(self, name: str) -> bool:
         """Add a new department."""
