@@ -1,10 +1,13 @@
 """Google Sheets integration module."""
 import gspread
+import logging
 from oauth2client.service_account import ServiceAccountCredentials
 from typing import Dict, Any, Optional
 import config
 from datetime import datetime
 import pytz
+
+logger = logging.getLogger(__name__)
 
 
 class GoogleSheetsManager:
@@ -317,7 +320,17 @@ class GoogleSheetsManager:
         - Future events (datetime >= now): Keep in "Tadbirlar" (including cancelled ones)
         """
         if not self._initialized:
+            logger.warning("Google Sheets not initialized")
             return False
+
+        # Ensure past_worksheet is connected
+        if not self.past_worksheet:
+            logger.error("past_worksheet is None, trying to reconnect...")
+            try:
+                self.past_worksheet = self.spreadsheet.worksheet("Otgan tadbirlar")
+            except Exception as e:
+                logger.error(f"Failed to connect to Otgan tadbirlar sheet: {e}")
+                return False
 
         try:
             local_tz = pytz.timezone(config.TIMEZONE)
@@ -326,7 +339,7 @@ class GoogleSheetsManager:
             # Get all events from "Tadbirlar" sheet
             all_values = self.worksheet.get_all_values()
             if len(all_values) <= 1:  # Only header or empty
-                print("No events to process in Tadbirlar sheet")
+                logger.info("No events to process in Tadbirlar sheet")
                 return True
 
             # Track rows to delete (in reverse order to avoid index shifting)
@@ -354,11 +367,14 @@ class GoogleSheetsManager:
                     # Check if event is in the past
                     if row_datetime < now:
                         # Add entire row to "Otgan tadbirlar" sheet
-                        self.past_worksheet.append_row(row)
+                        logger.debug(f"Appending row to Otgan tadbirlar: {row[:3]}...")
+                        result = self.past_worksheet.append_row(row, value_input_option='USER_ENTERED')
+                        logger.debug(f"Append result: {result}")
 
                         # Get the row number of newly added row in past sheet
                         past_all_values = self.past_worksheet.get_all_values()
                         new_past_row_num = len(past_all_values)
+                        logger.debug(f"New row number in Otgan tadbirlar: {new_past_row_num}")
 
                         # Apply appropriate background color
                         if row_title.startswith("[BEKOR QILINDI]"):
@@ -366,13 +382,13 @@ class GoogleSheetsManager:
                             self.past_worksheet.format(f'A{new_past_row_num}:J{new_past_row_num}', {
                                 'backgroundColor': {'red': 1.0, 'green': 0.8, 'blue': 0.8}
                             })
-                            print(f"✅ Moved cancelled past event from row {idx} to Otgan tadbirlar (red)")
+                            logger.info(f"Moved cancelled past event '{row_title[:30]}' to Otgan tadbirlar (red)")
                         else:
                             # Regular past event - GRAY background
                             self.past_worksheet.format(f'A{new_past_row_num}:J{new_past_row_num}', {
                                 'backgroundColor': {'red': 0.95, 'green': 0.95, 'blue': 0.95}
                             })
-                            print(f"✅ Moved past event '{row_title[:30]}...' from row {idx} to Otgan tadbirlar (gray)")
+                            logger.info(f"Moved past event '{row_title[:30]}' to Otgan tadbirlar (gray)")
 
                         # Mark row for deletion
                         rows_to_delete.append(idx)
@@ -391,24 +407,22 @@ class GoogleSheetsManager:
                             })
 
                 except Exception as e:
-                    print(f"❌ Error processing row {idx}: {e}")
+                    logger.error(f"Error processing row {idx}: {e}")
                     continue
 
             # Delete moved rows from "Tadbirlar" sheet (in reverse order to maintain indices)
             if rows_to_delete:
-                print(f"🗑️ Deleting {len(rows_to_delete)} moved events from Tadbirlar sheet...")
+                logger.info(f"Deleting {len(rows_to_delete)} moved events from Tadbirlar sheet...")
                 for row_num in reversed(rows_to_delete):
                     self.worksheet.delete_rows(row_num)
-                print(f"✅ Successfully moved {len(rows_to_delete)} past events to Otgan tadbirlar")
+                logger.info(f"Successfully moved {len(rows_to_delete)} past events to Otgan tadbirlar")
             else:
-                print("ℹ️ No past events found to move")
+                logger.debug("No past events found to move")
 
             return True
 
         except Exception as e:
-            print(f"❌ Error in mark_past_events: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error in mark_past_events: {e}", exc_info=True)
             return False
 
 
