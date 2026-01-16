@@ -34,10 +34,10 @@ class ReminderScheduler:
                 replace_existing=True
             )
 
-            # Job 2: Mark past events daily at 00:05 AM
+            # Job 2: Mark past events every hour at minute 5
             self.scheduler.add_job(
                 self.mark_past_events_job,
-                trigger=CronTrigger(hour=0, minute=5),
+                trigger=CronTrigger(minute=5),
                 id='mark_past_events',
                 replace_existing=True
             )
