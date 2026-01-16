@@ -339,9 +339,12 @@ class GoogleSheetsManager:
         try:
             local_tz = pytz.timezone(config.TIMEZONE)
             now = datetime.now(local_tz)
+            logger.info(f"=== MARK PAST EVENTS STARTED at {now.strftime('%Y-%m-%d %H:%M:%S')} ===")
 
             # Get all events from "Tadbirlar" sheet
             all_values = self.worksheet.get_all_values()
+            logger.info(f"Found {len(all_values) - 1} events in Tadbirlar sheet")
+
             if len(all_values) <= 1:  # Only header or empty
                 logger.info("No events to process in Tadbirlar sheet")
                 return True
@@ -368,14 +371,19 @@ class GoogleSheetsManager:
                     r_hour, r_minute = map(int, row_time.split(':'))
                     row_datetime = local_tz.localize(datetime(r_year, r_month, r_day, r_hour, r_minute))
 
+                    # Log comparison for debugging
+                    is_past = row_datetime < now
+                    logger.info(f"Event '{row_title[:25]}' - datetime: {row_datetime.strftime('%Y-%m-%d %H:%M')}, now: {now.strftime('%Y-%m-%d %H:%M')}, is_past: {is_past}")
+
                     # Check if event is in the past
-                    if row_datetime < now:
+                    if is_past:
                         # Get row count BEFORE append
                         past_count_before = len(self.past_worksheet.get_all_values())
 
                         # Add entire row to "Otgan tadbirlar" sheet
-                        logger.info(f"Appending to Otgan tadbirlar: {row_title[:30]}...")
-                        result = self.past_worksheet.append_row(row, value_input_option='USER_ENTERED')
+                        # Use RAW instead of USER_ENTERED to preserve exact data format
+                        logger.info(f"Appending to Otgan tadbirlar: {row_title[:30]}... Row data: {row[:4]}")
+                        result = self.past_worksheet.append_row(row, value_input_option='RAW')
 
                         # Get row count AFTER append to verify it worked
                         past_all_values = self.past_worksheet.get_all_values()
@@ -432,12 +440,15 @@ class GoogleSheetsManager:
                     self.worksheet.delete_rows(row_num)
                 logger.info(f"Successfully moved {len(rows_to_delete)} past events to Otgan tadbirlar")
             else:
-                logger.debug("No past events found to move")
+                logger.info("No past events found to move")
 
+            logger.info(f"=== MARK PAST EVENTS COMPLETED ===")
             return True
 
         except Exception as e:
             logger.error(f"Error in mark_past_events: {e}", exc_info=True)
+            import traceback
+            traceback.print_exc()
             return False
 
 
