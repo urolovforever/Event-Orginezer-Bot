@@ -332,6 +332,10 @@ class GoogleSheetsManager:
                 logger.error(f"Failed to connect to Otgan tadbirlar sheet: {e}")
                 return False
 
+        # Log sheet info for debugging
+        logger.info(f"past_worksheet title: {self.past_worksheet.title}")
+        logger.info(f"past_worksheet id: {self.past_worksheet.id}")
+
         try:
             local_tz = pytz.timezone(config.TIMEZONE)
             now = datetime.now(local_tz)
@@ -366,15 +370,26 @@ class GoogleSheetsManager:
 
                     # Check if event is in the past
                     if row_datetime < now:
-                        # Add entire row to "Otgan tadbirlar" sheet
-                        logger.debug(f"Appending row to Otgan tadbirlar: {row[:3]}...")
-                        result = self.past_worksheet.append_row(row, value_input_option='USER_ENTERED')
-                        logger.debug(f"Append result: {result}")
+                        # Get row count BEFORE append
+                        past_count_before = len(self.past_worksheet.get_all_values())
 
-                        # Get the row number of newly added row in past sheet
+                        # Add entire row to "Otgan tadbirlar" sheet
+                        logger.info(f"Appending to Otgan tadbirlar: {row_title[:30]}...")
+                        result = self.past_worksheet.append_row(row, value_input_option='USER_ENTERED')
+
+                        # Get row count AFTER append to verify it worked
                         past_all_values = self.past_worksheet.get_all_values()
-                        new_past_row_num = len(past_all_values)
-                        logger.debug(f"New row number in Otgan tadbirlar: {new_past_row_num}")
+                        past_count_after = len(past_all_values)
+
+                        # Verify append was successful
+                        if past_count_after <= past_count_before:
+                            logger.error(f"APPEND FAILED! Row count before: {past_count_before}, after: {past_count_after}")
+                            logger.error(f"Append result was: {result}")
+                            # DO NOT delete the row since append failed
+                            continue
+
+                        new_past_row_num = past_count_after
+                        logger.info(f"Append successful! New row number: {new_past_row_num}")
 
                         # Apply appropriate background color
                         if row_title.startswith("[BEKOR QILINDI]"):
@@ -390,7 +405,7 @@ class GoogleSheetsManager:
                             })
                             logger.info(f"Moved past event '{row_title[:30]}' to Otgan tadbirlar (gray)")
 
-                        # Mark row for deletion
+                        # Mark row for deletion ONLY if append was successful
                         rows_to_delete.append(idx)
 
                     else:
