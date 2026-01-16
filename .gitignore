@@ -31,9 +31,6 @@ wheels/
 *.sqlite
 *.sqlite3
 
-# Google Sheets credentials
-credentials.json
-
 # IDE
 .idea/
 .vscode/
